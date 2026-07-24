@@ -147,10 +147,11 @@ Two options:
 - **Gemini's `agy -p` does not read stdin.** Piping a diff in silently loses
   it and yields a hollow "CLEAN". Write the diff to a file and name the
   absolute path in the prompt.
-- macOS Codex desktop app: if you symlink `codex` out of
-  `/Applications/Codex.app`, symlink its sibling `codex-code-mode-host` into
-  the same directory too, or every run dies with
-  "failed to spawn code-mode host".
+- macOS Codex desktop app: if you symlink `codex` out of the app bundle,
+  symlink its sibling `codex-code-mode-host` into the same directory too, or
+  every run dies with "failed to spawn code-mode host". Check where `codex`
+  actually points with `ls -l` — as of 2026-07 it lives in
+  `/Applications/ChatGPT.app/Contents/Resources/`, not `Codex.app`.
 
 ## License
 

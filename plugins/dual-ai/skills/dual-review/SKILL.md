@@ -72,12 +72,14 @@ disagreement tells the user where to look manually.
   small/mini model still yields a shallow reviewer — and the merge logic
   would then treat "Codex found nothing" as an independent signal. If a mini
   model is pinned, override it for the review via `-c model=...`.
-- macOS + Codex desktop app: if `codex` is a symlink into
-  `/Applications/Codex.app`, the sibling helper `codex-code-mode-host` must
-  be symlinked into the same directory too — codex resolves that helper next
-  to the invoked binary, and without it every run fails with "failed to
-  spawn code-mode host" and returns a useless provisional verdict. If you
-  hit that error, recreate both symlinks and re-run.
+- macOS + Codex desktop app: if `codex` is a symlink into the app bundle,
+  the sibling helper `codex-code-mode-host` must be symlinked into the same
+  directory too — codex resolves that helper next to the invoked binary, and
+  without it every run fails with "failed to spawn code-mode host" and
+  returns a useless provisional verdict. If you hit that error, recreate both
+  symlinks and re-run. Check where `codex` actually points with `ls -l`
+  rather than assuming: as of 2026-07 it resolves to
+  `/Applications/ChatGPT.app/Contents/Resources/codex`, not `Codex.app`.
 - Codex reads `AGENTS.md` for project context automatically. If the repo
   only has a CLAUDE.md, consider keeping an `AGENTS.md` copy so both models
   see the same ground rules.

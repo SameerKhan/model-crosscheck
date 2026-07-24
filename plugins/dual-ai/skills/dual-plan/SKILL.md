@@ -91,10 +91,12 @@ primary working tree.
   don't edit the user's `~/.codex/config.toml` — always override reasoning
   effort to `high` via `-c`, and check which model the config pins (a mini
   model gives shallow critiques; override via `-c model=...` if needed).
-  macOS + Codex desktop app: if `codex` is symlinked out of
-  `/Applications/Codex.app`, its sibling helper `codex-code-mode-host` must
-  be symlinked into the same directory too, or every run fails with "failed
-  to spawn code-mode host" — recreate both symlinks if you hit that.
+  macOS + Codex desktop app: if `codex` is symlinked out of the app bundle,
+  its sibling helper `codex-code-mode-host` must be symlinked into the same
+  directory too, or every run fails with "failed to spawn code-mode host" —
+  recreate both symlinks if you hit that. Check where `codex` actually points
+  with `ls -l`: as of 2026-07 it resolves to
+  `/Applications/ChatGPT.app/Contents/Resources/codex`, not `Codex.app`.
 - Always pass `-s read-only` on critique runs — don't rely on the sandbox
   default, which the user's config can change. Only the explicit co-coder
   flow uses `--sandbox workspace-write`, and only in a worktree.
