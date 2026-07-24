@@ -1,8 +1,8 @@
 # model-crosscheck — two (or three) models, one codebase
 
-> **Renamed from `dual-ai-skills`.** If you installed before 2026-07-25, see
-> [Renamed from dual-ai-skills](#renamed-from-dual-ai-skills) — the plugin
-> migrates itself, but the marketplace must be re-added once.
+> **Renamed from `dual-ai-skills`.** Installed before 2026-07-25? Nothing is
+> broken — run `/plugin marketplace update dual-ai-skills` and the plugin
+> migrates itself. See [Renamed from dual-ai-skills](#renamed-from-dual-ai-skills).
 
 [Claude Code](https://claude.com/claude-code) skills that put **Claude,
 OpenAI's Codex CLI — and optionally Google's Gemini — in an adversarial loop**
@@ -199,7 +199,21 @@ inside the crosscheck plugin.
 
 ### If you installed before 2026-07-25
 
-**Re-add the marketplace once:**
+**Nothing is broken, and you may not need to do anything.** Refresh and you'll
+pick up the new catalog:
+
+```
+/plugin marketplace update dual-ai-skills
+```
+
+Your local registration keeps its old key (`dual-ai-skills`) — Claude Code does
+not re-key a marketplace when the manifest's `name` changes — but it now serves
+the renamed plugin, and this repo ships `"renames": {"dual-ai": "crosscheck"}`
+so `dual-ai` resolves to `crosscheck` automatically. Installing and updating
+keep working under the old key, as `crosscheck@dual-ai-skills`.
+
+**Optional, purely cosmetic** — if you want the marketplace to show up under
+its new name too:
 
 ```
 /plugin marketplace remove dual-ai-skills
@@ -207,14 +221,11 @@ inside the crosscheck plugin.
 /plugin install crosscheck@model-crosscheck
 ```
 
-The marketplace step is manual because Claude Code's plugin `renames` map
-migrates a *plugin* name within a marketplace — it cannot migrate a
-*marketplace* id. This repo ships the plugin half of that migration
-(`"renames": {"dual-ai": "crosscheck"}`), so `dual-ai` resolves to `crosscheck`
-automatically; only the marketplace registration needs the manual step.
+This step is manual because the `renames` map migrates a *plugin* name within a
+marketplace; it cannot migrate a *marketplace* id.
 
-Update any saved prompts or docs that reference `/dual-ai:*` — no mechanism
-can rewrite those for you.
+**The one thing no mechanism can fix:** saved prompts, docs, or scripts that
+say `/dual-ai:tri-review` need updating to `/crosscheck:tri-review` by hand.
 
 **If your organization pins marketplace sources in managed settings** — via
 `strictKnownMarketplaces` or `extraKnownMarketplaces` — note that those
