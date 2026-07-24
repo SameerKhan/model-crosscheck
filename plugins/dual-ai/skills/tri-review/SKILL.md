@@ -9,6 +9,31 @@ Three independent reviews of the same diff, merged into one report. The value
 is in the merge: agreement across different models is the strongest signal a
 finding is real; disagreement tells the user exactly where to look manually.
 
+## Model per leg — pin all three
+
+| Leg | Model | Where it's set |
+|---|---|---|
+| **Claude** (verification + merge; see step 4 re `/code-review`) | the strongest Claude tier available (Opus) | the session model — see below |
+| Codex | whatever `~/.codex/config.toml` pins | `-c` override, effort forced to `high` |
+| Gemini | newest Gemini on the plan | `--model` on every `agy` call |
+
+The other two legs get their model pinned explicitly, so the Claude leg
+shouldn't be the one seat left to chance. It is also the load-bearing one: it
+holds the repo context, verifies the other two models' findings before
+relaying them, and writes the merge. Run it on the strongest Claude tier
+available — **not** a fast/cheap tier, even if that is the session default.
+
+Claude cannot switch its own main-loop model, so **check before starting**.
+The active model is stated in the session's environment context (the user can
+also confirm with `/status`).
+
+- Already on the strongest tier → proceed.
+- Anything else → **stop before step 1**, say which model the Claude leg
+  would run on, and ask the user to switch (`/model opus`) and re-invoke.
+  Don't quietly run a "triple review" with a downgraded Claude seat.
+- Pin any subagent this skill spawns to the same tier explicitly — passing an
+  `agentType` inherits that agent definition's own model instead.
+
 ## Steps
 
 1. **Determine diff scope.**
@@ -60,6 +85,14 @@ finding is real; disagreement tells the user exactly where to look manually.
    network to the sandboxed run; never disable the sandbox for a review.
 
 4. **While they run, invoke `/code-review` at high effort** on the same scope.
+   **Don't assume `/code-review` inherits the session model** — some
+   implementations fan out to their own fixed-tier workers (the official
+   `code-review` plugin command, for one, pins Haiku agents plus 5 parallel
+   Sonnet review agents). The model gate reliably covers the main-loop work:
+   the verification pass in step 5, the rebuttal round, and the merge. If the
+   finding-generation itself must run on the top tier, spawn the review
+   agents directly with an explicit `model` rather than relying on
+   inheritance.
 
 5. **Merge the findings** once all three are done. Dedupe by file + line +
    issue, then rank:

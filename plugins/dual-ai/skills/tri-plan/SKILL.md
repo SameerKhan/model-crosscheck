@@ -11,6 +11,32 @@ final diff. The value is adversarial and cross-vendor: both critics are
 prompted to find what the plan gets wrong, not to agree with it, and a
 point BOTH critics raise independently is near-certain to be real.
 
+## Model per leg — pin all three
+
+| Leg | Model | Where it's set |
+|---|---|---|
+| **Claude** (plan draft, adjudication, implementation) | the strongest Claude tier available (Opus) | the session model — see below |
+| Codex critic | whatever `~/.codex/config.toml` pins | `-c` override, effort forced to `high` |
+| Gemini critic | newest Gemini on the plan | `--model` on every `agy` call |
+
+Both critics get their model pinned explicitly, so the Claude leg shouldn't be
+the one seat left to chance. It is also the load-bearing one: Claude drafts
+the plan, rules on both critiques, and writes the code — the critics only ever
+react to what Claude produced, so a weak draft caps the quality of the whole
+run. Run it on the strongest Claude tier available — **not** a fast/cheap
+tier, even if that is the session default.
+
+Claude cannot switch its own main-loop model, so **check before starting**.
+The active model is stated in the session's environment context (the user can
+also confirm with `/status`).
+
+- Already on the strongest tier → proceed.
+- Anything else → **stop before step 1**, say which model the Claude leg
+  would run on, and ask the user to switch (`/model opus`) and re-invoke.
+  Don't draft on a downgraded model and then spend two critic CLIs on it.
+- Pin any subagent this skill spawns to the same tier explicitly — passing an
+  `agentType` inherits that agent definition's own model instead.
+
 ## Steps
 
 1. **Scope the feature.** Explore the codebase as usual (respect the repo's

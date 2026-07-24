@@ -121,6 +121,17 @@ Two options:
 - **Always force Codex's reasoning effort to `high`** for reviews
   (`-c model_reasoning_effort="high"`). Default/low effort produces
   confident-sounding but shallow reviews.
+- **Pin all three models, including Claude's.** It's easy to pin `--model`
+  for Gemini and `-c` for Codex and then leave the Claude seat on whatever
+  the session happened to be running. Claude's seat is the load-bearing one
+  — it holds the repo context, verifies the other models' findings, and
+  writes the merge — so run it on the strongest tier you have (Opus). The
+  `/tri-*` skills now check the session model up front and stop rather than
+  run a "triple review" with a downgraded Claude seat. Caveat worth knowing:
+  `/code-review` does not necessarily inherit your session model — the
+  official `code-review` plugin command fans out to Haiku and Sonnet workers
+  — so the gate covers the main-loop verify/merge, and you should pin an
+  explicit model if you need the finding-generation on Opus too.
 - **Never let both models write to the same working tree.** One drives, the
   other critiques. The optional co-coder mode in `/dual-plan` uses an
   isolated `git worktree` for exactly this reason — and critique/review runs
