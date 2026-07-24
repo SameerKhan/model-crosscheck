@@ -72,6 +72,15 @@ pre-triaged by confidence instead of being one long unweighted list.
 The first two are needed; the whole point is independent vendors. The third
 adds a tie-breaker.
 
+**Windows, macOS, and Linux are all supported.** The skills' command snippets
+are written in bash/zsh, and each one carries a cross-platform table for the
+handful of things PowerShell does differently — most importantly that
+PowerShell **reserves `<`**, so the `codex exec - < prompt.md` stdin form
+errors and must become `Get-Content prompt.md | codex exec -`. Temp-file
+creation (`mktemp` → `New-TemporaryFile`) and config paths (`~/.codex` →
+`$env:USERPROFILE\.codex`) differ too. Everything else — every CLI flag, the
+merge logic, the convergence rules — is identical on all three.
+
 ## Install
 
 Pick ONE of the two options — installing both registers duplicate skill
@@ -95,6 +104,14 @@ they don't show up immediately, restart Claude Code.)
 git clone https://github.com/SameerKhan/dual-ai-skills
 mkdir -p ~/.claude/skills
 cp -r dual-ai-skills/plugins/dual-ai/skills/* ~/.claude/skills/
+```
+
+Windows (PowerShell):
+
+```powershell
+git clone https://github.com/SameerKhan/dual-ai-skills
+New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.claude\skills"
+Copy-Item -Recurse -Force dual-ai-skills\plugins\dual-ai\skills\* "$env:USERPROFILE\.claude\skills\"
 ```
 
 (Or into a repo's `.claude/skills/` to share it with just that team/project.)

@@ -1,7 +1,7 @@
 {
   "name": "dual-ai",
   "description": "Multi-model workflows for Claude Code: /dual-plan and /tri-plan (Claude drafts, Codex — and for tri, Gemini — critique until convergence), /dual-review (Claude + Codex review the same diff, merged into one adversarially-verified report), and /tri-review (Claude + Codex + Gemini, three independent reviewers on the same diff).",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "author": {
     "name": "Sameer Ahmed Khan"
   }

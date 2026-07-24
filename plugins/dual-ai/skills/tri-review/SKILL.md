@@ -34,6 +34,24 @@ also confirm with `/status`).
 - Pin any subagent this skill spawns to the same tier explicitly — passing an
   `agentType` inherits that agent definition's own model instead.
 
+## Cross-platform — the snippets below are bash/zsh
+
+On Windows (PowerShell) three of them break outright. Detect the shell and
+translate; don't paste the bash form and hope:
+
+| bash/zsh | PowerShell |
+|---|---|
+| `PATCH=$(mktemp)` | `$PATCH = (New-TemporaryFile).FullName` |
+| `cmd - < prompt.md` | `Get-Content prompt.md \| cmd -` — PowerShell **reserves `<`** and errors on it |
+| `rm -f "$PATCH"` | `Remove-Item $PATCH -Force` |
+| `~/.codex/config.toml` | `$env:USERPROFILE\.codex\config.toml` (or `$env:CODEX_HOME\config.toml` — `CODEX_HOME` is the directory, not the file) |
+| `~/.gemini/antigravity-cli/settings.json` | `$env:USERPROFILE\.gemini\antigravity-cli\settings.json` |
+
+`codex` and `agy` are on PATH on Windows when installed normally — the
+`~/.local/bin/agy` fallback and the `codex-code-mode-host` symlink trap are
+macOS/Linux-only. Everything else (the `git` commands, all CLI flags, and the
+merge logic) is identical on every platform.
+
 ## Steps
 
 1. **Determine diff scope.**
@@ -56,14 +74,17 @@ also confirm with `/status`).
 2. **Write the diff to a patch file** (Gemini needs it — see Notes):
 
    ```bash
-   PATCH=$(mktemp -t tri-review.XXXXXX.patch)
+   PATCH=$(mktemp)
    git diff origin/<trunk>...HEAD > "$PATCH"
    # or: git diff HEAD > "$PATCH" for uncommitted scope
    ```
 
    Use a unique temp file (`mktemp`), not a fixed path — a fixed name
    collides with a concurrent review and is world-predictable. Delete it
-   when the review is done.
+   when the review is done. Plain `mktemp` with no template is the portable
+   form: BSD/macOS `mktemp -t foo.XXXXXX` treats the argument as a *prefix*
+   and appends its own suffix, so the literal `XXXXXX` survives in the
+   filename. The extension doesn't matter — Gemini reads the file by path.
 
 3. **Start Codex and Gemini in the background, in parallel** (each takes
    several minutes). Two separate Bash calls with `run_in_background: true`:
@@ -123,9 +144,10 @@ also confirm with `/status`).
 ## Notes — Gemini leg (Antigravity CLI)
 
 - Requires Google's Antigravity CLI (`agy`) installed and authenticated with
-  a Google plan login (run `agy` interactively once to sign in). It may live
-  at `~/.local/bin/agy` and not be on PATH in non-interactive shells — use
-  the absolute path if `agy` isn't found.
+  a Google plan login (run `agy` interactively once to sign in). On
+  macOS/Linux it may live at `~/.local/bin/agy` and not be on PATH in
+  non-interactive shells — use the absolute path if `agy` isn't found. On
+  Windows a normal install puts it on PATH.
 - **`agy -p` does NOT pass stdin to the model.** Piping a diff in silently
   loses it and yields a hollow CLEAN. Always write the diff to a file and
   name the absolute path in the prompt.

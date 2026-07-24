@@ -65,6 +65,13 @@ disagreement tells the user where to look manually.
 
 ## Notes
 
+- **Cross-platform:** the snippets above are bash/zsh, but this skill runs
+  only `git` and `codex` commands — both identical on Windows. The one
+  translation needed is the config path: `~/.codex/config.toml` is
+  `$env:USERPROFILE\.codex\config.toml` in PowerShell — or
+  `$env:CODEX_HOME\config.toml`, since `CODEX_HOME` names the directory, not
+  the file.
+  The `codex-code-mode-host` symlink trap below is macOS-only.
 - Requires the OpenAI Codex CLI (`codex`) installed and authenticated
   (`codex login`). Don't change the user's global `~/.codex/config.toml`;
   use `-c` overrides only.

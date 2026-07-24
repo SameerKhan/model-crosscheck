@@ -37,15 +37,32 @@ also confirm with `/status`).
 - Pin any subagent this skill spawns to the same tier explicitly — passing an
   `agentType` inherits that agent definition's own model instead.
 
+## Cross-platform — the snippets below are bash/zsh
+
+On Windows (PowerShell) the stdin redirect breaks outright. Detect the shell
+and translate; don't paste the bash form and hope:
+
+| bash/zsh | PowerShell |
+|---|---|
+| `codex exec ... - < critique-prompt.md` | `Get-Content critique-prompt.md \| codex exec ... -` — PowerShell **reserves `<`** and errors on it |
+| `mktemp` | `(New-TemporaryFile).FullName` |
+| `~/.codex/config.toml` | `$env:USERPROFILE\.codex\config.toml` (or `$env:CODEX_HOME\config.toml` — `CODEX_HOME` is the directory, not the file) |
+| `~/.gemini/antigravity-cli/settings.json` | `$env:USERPROFILE\.gemini\antigravity-cli\settings.json` |
+
+`codex` and `agy` are on PATH on Windows when installed normally — the
+`~/.local/bin/agy` fallback and the `codex-code-mode-host` symlink trap are
+macOS/Linux-only. All CLI flags, the convergence rules, and the round cap are
+identical on every platform.
+
 ## Steps
 
 1. **Scope the feature.** Explore the codebase as usual (respect the repo's
    CLAUDE.md conventions and known landmines). Draft an implementation plan:
    goal, files to touch, approach, data-shape changes, risks, test plan.
-   Write it to a scratch file OUTSIDE the repo (`mktemp -t plan.XXXXXX.md`) —
-   scratch files inside the repo would pollute a later `--uncommitted`
-   review scope or get committed by accident. Both critics read this file,
-   so use an absolute path.
+   Write it to a scratch file OUTSIDE the repo (plain `mktemp`, or
+   `$env:TEMP\plan.md` on Windows) — scratch files inside the repo would
+   pollute a later `--uncommitted` review scope or get committed by accident.
+   Both critics read this file, so use an absolute path.
 
 2. **Critique gate — run both critics in parallel, in the background**
    (each takes minutes; two separate Bash calls with

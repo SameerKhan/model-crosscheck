@@ -10,14 +10,30 @@ critiques at two gates — the plan and the final diff. The value is
 adversarial: Codex is prompted to find what the plan gets wrong, not to
 agree with it.
 
+## Cross-platform — the snippets below are bash/zsh
+
+On Windows (PowerShell) the stdin redirect breaks outright. Detect the shell
+and translate; don't paste the bash form and hope:
+
+| bash/zsh | PowerShell |
+|---|---|
+| `codex exec ... - < /tmp/critique-prompt.md` | `Get-Content $env:TEMP\critique-prompt.md \| codex exec ... -` — PowerShell **reserves `<`** and errors on it |
+| `/tmp/plan.md` | `$env:TEMP\plan.md` |
+| `~/.codex/config.toml` | `$env:USERPROFILE\.codex\config.toml` (or `$env:CODEX_HOME\config.toml` — `CODEX_HOME` is the directory, not the file) |
+
+`codex` is on PATH on Windows when installed normally — the
+`codex-code-mode-host` symlink trap below is macOS-only. All CLI flags, the
+convergence rules, and the round cap are identical on every platform.
+
 ## Steps
 
 1. **Scope the feature.** Explore the codebase as usual (respect the repo's
    CLAUDE.md conventions and known landmines). Draft an implementation plan:
    goal, files to touch, approach, data-shape changes, risks, test plan.
-   Write it to a scratchpad file OUTSIDE the repo (e.g. `/tmp/plan.md`) —
-   scratch files inside the repo would pollute the later `--uncommitted`
-   review scope or get committed by accident.
+   Write it to a scratchpad file OUTSIDE the repo, in the OS temp dir
+   (`/tmp/plan.md`; `$env:TEMP\plan.md` on Windows) — scratch files inside
+   the repo would pollute the later `--uncommitted` review scope or get
+   committed by accident.
 
 2. **Codex critique gate.** Build a critique prompt file containing the plan
    plus instructions, then run Codex read-only in the background (takes
@@ -79,6 +95,9 @@ piece itself in an ISOLATED git worktree:
 git worktree add /tmp/codex-<feature> HEAD
 cd /tmp/codex-<feature> && codex exec --sandbox workspace-write "<subtask spec>"
 ```
+
+(On Windows use a temp path such as `$env:TEMP\codex-<feature>`; the worktree
+must live outside the primary working tree, not the specific `/tmp` path.)
 
 Then Claude reviews Codex's working-tree diff in the worktree, applies and
 commits the accepted changes onto the main branch, and /dual-review still
