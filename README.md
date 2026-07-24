@@ -1,10 +1,8 @@
 # model-crosscheck — two (or three) models, one codebase
 
-> **Renamed from `dual-ai-skills`.** The install identifiers are deliberately
-> unchanged — `/plugin install dual-ai@dual-ai-skills` and `/dual-ai:*` keep
-> working, and existing installs need no action. Only the repository URL moved.
-> See [Renamed from dual-ai-skills](#renamed-from-dual-ai-skills) if your
-> organization pins marketplace sources in managed settings.
+> **Renamed from `dual-ai-skills`.** If you installed before 2026-07-25, see
+> [Renamed from dual-ai-skills](#renamed-from-dual-ai-skills) — the plugin
+> migrates itself, but the marketplace must be re-added once.
 
 [Claude Code](https://claude.com/claude-code) skills that put **Claude,
 OpenAI's Codex CLI — and optionally Google's Gemini — in an adversarial loop**
@@ -96,15 +94,12 @@ names, and the stale copy can shadow the auto-updating plugin.
 
 ```
 /plugin marketplace add SameerKhan/model-crosscheck
-/plugin install dual-ai@dual-ai-skills
+/plugin install crosscheck@model-crosscheck
 ```
 
-(The `dual-ai@dual-ai-skills` id is intentional and unchanged — see the
-rename note above.)
-
-Plugin-installed skills are namespaced: invoke them as `/dual-ai:dual-plan`,
-`/dual-ai:dual-review`, `/dual-ai:tri-plan`, and `/dual-ai:tri-review`. (If
-they don't show up immediately, restart Claude Code.)
+Plugin-installed skills are namespaced: invoke them as `/crosscheck:dual-plan`,
+`/crosscheck:dual-review`, `/crosscheck:tri-plan`, and `/crosscheck:tri-review`.
+(If they don't show up immediately, restart Claude Code.)
 
 **Option B — plain copy** (skills appear unnamespaced as `/dual-plan`,
 `/dual-review`, `/tri-plan`, and `/tri-review`):
@@ -112,7 +107,7 @@ they don't show up immediately, restart Claude Code.)
 ```bash
 git clone https://github.com/SameerKhan/model-crosscheck
 mkdir -p ~/.claude/skills
-cp -r model-crosscheck/plugins/dual-ai/skills/* ~/.claude/skills/
+cp -r model-crosscheck/plugins/crosscheck/skills/* ~/.claude/skills/
 ```
 
 Windows (PowerShell):
@@ -120,7 +115,7 @@ Windows (PowerShell):
 ```powershell
 git clone https://github.com/SameerKhan/model-crosscheck
 New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.claude\skills"
-Copy-Item -Recurse -Force model-crosscheck\plugins\dual-ai\skills\* "$env:USERPROFILE\.claude\skills\"
+Copy-Item -Recurse -Force model-crosscheck\plugins\crosscheck\skills\* "$env:USERPROFILE\.claude\skills\"
 ```
 
 (Or into a repo's `.claude/skills/` to share it with just that team/project.)
@@ -187,10 +182,39 @@ the wrapper badly. `model-crosscheck` names the mechanism instead — independen
 models cross-checking each other — which stays accurate at two models, three,
 or more.
 
-**Nothing you type changed.** The marketplace name (`dual-ai-skills`), the
-plugin name (`dual-ai`), and all four skill names are deliberately unchanged,
-so existing installs keep working and need no migration. Only the repository
-URL moved, and GitHub redirects the old one.
+The identifiers moved with it, in v2.0.0:
+
+| | before | now |
+|---|---|---|
+| marketplace | `dual-ai-skills` | `model-crosscheck` |
+| plugin | `dual-ai` | `crosscheck` |
+| install | `dual-ai@dual-ai-skills` | `crosscheck@model-crosscheck` |
+| namespace | `/dual-ai:tri-review` | `/crosscheck:tri-review` |
+
+**The four skill names did not change** — `dual-plan`, `dual-review`,
+`tri-plan`, `tri-review`. "dual" and "tri" are wrong as an umbrella but exactly
+right at the skill level, where they tell you how many models that particular
+workflow runs. So `/crosscheck:dual-plan` is not a typo: a two-model plan
+inside the crosscheck plugin.
+
+### If you installed before 2026-07-25
+
+**Re-add the marketplace once:**
+
+```
+/plugin marketplace remove dual-ai-skills
+/plugin marketplace add SameerKhan/model-crosscheck
+/plugin install crosscheck@model-crosscheck
+```
+
+The marketplace step is manual because Claude Code's plugin `renames` map
+migrates a *plugin* name within a marketplace — it cannot migrate a
+*marketplace* id. This repo ships the plugin half of that migration
+(`"renames": {"dual-ai": "crosscheck"}`), so `dual-ai` resolves to `crosscheck`
+automatically; only the marketplace registration needs the manual step.
+
+Update any saved prompts or docs that reference `/dual-ai:*` — no mechanism
+can rewrite those for you.
 
 **If your organization pins marketplace sources in managed settings** — via
 `strictKnownMarketplaces` or `extraKnownMarketplaces` — note that those
