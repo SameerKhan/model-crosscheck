@@ -7,6 +7,7 @@
   "plugins": [
     {
       "name": "dual-ai",
+      "displayName": "Model Crosscheck",
       "source": "./plugins/dual-ai",
       "description": "Multi-model workflows for Claude Code: /dual-plan and /tri-plan (Claude drafts, one or two rival models critique until convergence), /dual-review (Claude + Codex review the same diff, merged into one adversarially-verified report), and /tri-review (Claude + Codex + Gemini on the same diff)."
     }

@@ -1,4 +1,10 @@
-# dual-ai — two (or three) models, one codebase
+# model-crosscheck — two (or three) models, one codebase
+
+> **Renamed from `dual-ai-skills`.** The install identifiers are deliberately
+> unchanged — `/plugin install dual-ai@dual-ai-skills` and `/dual-ai:*` keep
+> working, and existing installs need no action. Only the repository URL moved.
+> See [Renamed from dual-ai-skills](#renamed-from-dual-ai-skills) if your
+> organization pins marketplace sources in managed settings.
 
 [Claude Code](https://claude.com/claude-code) skills that put **Claude,
 OpenAI's Codex CLI — and optionally Google's Gemini — in an adversarial loop**
@@ -89,9 +95,12 @@ names, and the stale copy can shadow the auto-updating plugin.
 **Option A — as a plugin (recommended):** in Claude Code, run
 
 ```
-/plugin marketplace add SameerKhan/dual-ai-skills
+/plugin marketplace add SameerKhan/model-crosscheck
 /plugin install dual-ai@dual-ai-skills
 ```
+
+(The `dual-ai@dual-ai-skills` id is intentional and unchanged — see the
+rename note above.)
 
 Plugin-installed skills are namespaced: invoke them as `/dual-ai:dual-plan`,
 `/dual-ai:dual-review`, `/dual-ai:tri-plan`, and `/dual-ai:tri-review`. (If
@@ -101,17 +110,17 @@ they don't show up immediately, restart Claude Code.)
 `/dual-review`, `/tri-plan`, and `/tri-review`):
 
 ```bash
-git clone https://github.com/SameerKhan/dual-ai-skills
+git clone https://github.com/SameerKhan/model-crosscheck
 mkdir -p ~/.claude/skills
-cp -r dual-ai-skills/plugins/dual-ai/skills/* ~/.claude/skills/
+cp -r model-crosscheck/plugins/dual-ai/skills/* ~/.claude/skills/
 ```
 
 Windows (PowerShell):
 
 ```powershell
-git clone https://github.com/SameerKhan/dual-ai-skills
+git clone https://github.com/SameerKhan/model-crosscheck
 New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.claude\skills"
-Copy-Item -Recurse -Force dual-ai-skills\plugins\dual-ai\skills\* "$env:USERPROFILE\.claude\skills\"
+Copy-Item -Recurse -Force model-crosscheck\plugins\dual-ai\skills\* "$env:USERPROFILE\.claude\skills\"
 ```
 
 (Or into a repo's `.claude/skills/` to share it with just that team/project.)
@@ -169,6 +178,33 @@ Two options:
   every run dies with "failed to spawn code-mode host". Check where `codex`
   actually points with `ls -l` — as of 2026-07 it lives in
   `/Applications/ChatGPT.app/Contents/Resources/`, not `Codex.app`.
+
+## Renamed from dual-ai-skills
+
+This repo was `SameerKhan/dual-ai-skills` until 2026-07-25. It shipped two
+skills then; it ships four now, half of them three-model, so "dual" described
+the wrapper badly. `model-crosscheck` names the mechanism instead — independent
+models cross-checking each other — which stays accurate at two models, three,
+or more.
+
+**Nothing you type changed.** The marketplace name (`dual-ai-skills`), the
+plugin name (`dual-ai`), and all four skill names are deliberately unchanged,
+so existing installs keep working and need no migration. Only the repository
+URL moved, and GitHub redirects the old one.
+
+**If your organization pins marketplace sources in managed settings** — via
+`strictKnownMarketplaces` or `extraKnownMarketplaces` — note that those
+allowlists match on the *source*, not the marketplace name: a marketplace
+registered from a source that isn't allowlisted is ignored. Existing
+registrations continue to work through the redirect, but before anyone adds
+the marketplace fresh, an administrator should allowlist the new source:
+
+```
+SameerKhan/model-crosscheck
+```
+
+The old source (`SameerKhan/dual-ai-skills`) also still resolves via redirect,
+so it can be kept alongside the new one during a transition.
 
 ## License
 
