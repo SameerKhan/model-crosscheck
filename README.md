@@ -1,8 +1,9 @@
 # model-crosscheck — two (or three) models, one codebase
 
-> **Renamed from `dual-ai-skills`.** Installed before 2026-07-25? Nothing is
-> broken — run `/plugin marketplace update dual-ai-skills` and the plugin
-> migrates itself. See [Renamed from dual-ai-skills](#renamed-from-dual-ai-skills).
+> **Renamed from `dual-ai-skills`.** Installed before 2026-07-25? Run
+> `/plugin marketplace update dual-ai-skills`; the plugin is recognized as
+> renamed and keeps working, but the skill namespace becomes `/crosscheck:*`.
+> See [Renamed from dual-ai-skills](#renamed-from-dual-ai-skills).
 
 [Claude Code](https://claude.com/claude-code) skills that put **Claude,
 OpenAI's Codex CLI — and optionally Google's Gemini — in an adversarial loop**
@@ -199,18 +200,28 @@ inside the crosscheck plugin.
 
 ### If you installed before 2026-07-25
 
-**Nothing is broken, and you may not need to do anything.** Refresh and you'll
-pick up the new catalog:
+**Your install is not orphaned, but one thing does change.** Refresh first:
 
 ```
 /plugin marketplace update dual-ai-skills
 ```
 
-Your local registration keeps its old key (`dual-ai-skills`) — Claude Code does
-not re-key a marketplace when the manifest's `name` changes — but it now serves
-the renamed plugin, and this repo ships `"renames": {"dual-ai": "crosscheck"}`
-so `dual-ai` resolves to `crosscheck` automatically. Installing and updating
-keep working under the old key, as `crosscheck@dual-ai-skills`.
+Claude Code then recognizes the rename — `/plugin list` marks the entry
+*"Renamed to crosscheck"* — because this repo ships
+`"renames": {"dual-ai": "crosscheck"}`. Two consequences, both verified
+against Claude Code 2.1.215:
+
+- **The plugin now answers to `crosscheck`, not `dual-ai`.** After the
+  refresh, `crosscheck@…` resolves and `dual-ai@…` does not.
+- **Your marketplace keeps its old registration key.** Claude Code does not
+  re-key a marketplace when the manifest's `name` changes, so yours stays
+  `dual-ai-skills` and the plugin is addressed as `crosscheck@dual-ai-skills`.
+  (That is the *marketplace* key that's old, not the plugin name.)
+
+**What actually breaks: the skill namespace.** Skills move from `/dual-ai:*`
+to `/crosscheck:*`. Saved prompts, docs, or scripts that say
+`/dual-ai:tri-review` must be updated to `/crosscheck:tri-review` by hand — no
+mechanism can rewrite those for you.
 
 **Optional, purely cosmetic** — if you want the marketplace to show up under
 its new name too:
