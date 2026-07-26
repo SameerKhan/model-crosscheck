@@ -35,6 +35,18 @@ on the same work, instead of trusting any one model alone:
   Points both critics raise independently are treated as near-certain;
   single-critic points are verified against the code before the plan
   changes. Closes with `/tri-review` on the finished diff.
+- **`/tri-decide`** — for architecture and technology decisions rather than
+  code. All three models propose an approach **blind** (none sees the
+  others), each argues the strongest case *against its own* recommendation,
+  then they cross-examine the alternatives **anonymized** so nobody defers
+  to a name. The inversion that matters: unlike a code review, **agreement
+  here is not signal** — three models trained on overlapping corpora share
+  the same conventional wisdom, so convergence gets challenged as an
+  unexamined default and *divergence* becomes the product. Output is a
+  decision record — options, what each bets on, the cruxes (with the cheap
+  ones actually verified), a recommendation that discloses which option
+  Claude authored, and a revisit trigger. It declines to run on reversible
+  decisions, and it never decides for you.
 
 ## Why this exists
 
@@ -70,8 +82,8 @@ pre-triaged by confidence instead of being one long unweighted list.
 1. **Claude Code** (CLI, desktop, or IDE extension) — runs the skills.
 2. **OpenAI Codex CLI** — `codex` on your PATH, authenticated
    (`codex login` or via the Codex desktop app).
-3. **Google Antigravity CLI** (`agy`) — only for `/tri-review` and
-   `/tri-plan`; authenticated with a Google plan login (run `agy` once
+3. **Google Antigravity CLI** (`agy`) — for `/tri-review`, `/tri-plan`, and
+   `/tri-decide`; authenticated with a Google plan login (run `agy` once
    interactively to sign in).
 
 The first two are needed; the whole point is independent vendors. The third
@@ -99,11 +111,12 @@ names, and the stale copy can shadow the auto-updating plugin.
 ```
 
 Plugin-installed skills are namespaced: invoke them as `/crosscheck:dual-plan`,
-`/crosscheck:dual-review`, `/crosscheck:tri-plan`, and `/crosscheck:tri-review`.
-(If they don't show up immediately, restart Claude Code.)
+`/crosscheck:dual-review`, `/crosscheck:tri-plan`, `/crosscheck:tri-review`,
+and `/crosscheck:tri-decide`. (If they don't show up immediately, restart
+Claude Code.)
 
 **Option B — plain copy** (skills appear unnamespaced as `/dual-plan`,
-`/dual-review`, `/tri-plan`, and `/tri-review`):
+`/dual-review`, `/tri-plan`, `/tri-review`, and `/tri-decide`):
 
 ```bash
 git clone https://github.com/SameerKhan/model-crosscheck
@@ -122,8 +135,9 @@ Copy-Item -Recurse -Force model-crosscheck\plugins\crosscheck\skills\* "$env:USE
 (Or into a repo's `.claude/skills/` to share it with just that team/project.)
 
 Either way, you can also just say **"dual plan this feature"**,
-**"tri plan this feature"**, **"dual review this branch"**, or
-**"tri review this branch"** in Claude Code — no slash command needed.
+**"tri plan this feature"**, **"dual review this branch"**,
+**"tri review this branch"**, or **"tri decide this"** in Claude Code — no
+slash command needed.
 
 ## Not on Claude Code? (Cursor, Antigravity, etc.)
 
@@ -192,8 +206,9 @@ The identifiers moved with it, in v2.0.0:
 | install | `dual-ai@dual-ai-skills` | `crosscheck@model-crosscheck` |
 | namespace | `/dual-ai:tri-review` | `/crosscheck:tri-review` |
 
-**The four skill names did not change** — `dual-plan`, `dual-review`,
-`tri-plan`, `tri-review`. "dual" and "tri" are wrong as an umbrella but exactly
+**The existing skill names did not change** — `dual-plan`, `dual-review`,
+`tri-plan`, `tri-review` (`tri-decide` was added after the rename).
+"dual" and "tri" are wrong as an umbrella but exactly
 right at the skill level, where they tell you how many models that particular
 workflow runs. So `/crosscheck:dual-plan` is not a typo: a two-model plan
 inside the crosscheck plugin.
