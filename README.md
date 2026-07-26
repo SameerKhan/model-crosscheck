@@ -47,6 +47,18 @@ on the same work, instead of trusting any one model alone:
   ones actually verified), a recommendation that discloses which option
   Claude authored, and a revisit trigger. It declines to run on reversible
   decisions, and it never decides for you.
+- **`/tri-strategy`** — the business sibling of `/tri-decide`, for pricing,
+  packaging, market focus, GTM motion. Two things change, because the other
+  models **cannot see your business**: you assemble an **evidence pack**
+  (real numbers, inline, dated, sourced — they can't open your dashboards),
+  and each model argues an **assigned lens** — unit economics, competitive
+  positioning, execution capacity — because with no ground truth to check
+  against, three generalists just triple the same prior while three lenses
+  surface the actual trade-off. Every leg is forbidden from inventing a
+  figure: anything missing is named a MISSING FACT and resolved with live
+  tools, since fabricated benchmarks are the failure mode nothing else here
+  would catch. Output is a strategy memo with months-to-unwind, who bears
+  the cost, the cruxes, and a revisit trigger.
 
 ## Why this exists
 
@@ -82,9 +94,10 @@ pre-triaged by confidence instead of being one long unweighted list.
 1. **Claude Code** (CLI, desktop, or IDE extension) — runs the skills.
 2. **OpenAI Codex CLI** — `codex` on your PATH, authenticated
    (`codex login` or via the Codex desktop app).
-3. **Google Antigravity CLI** (`agy`) — for `/tri-review`, `/tri-plan`, and
-   `/tri-decide`; authenticated with a Google plan login (run `agy` once
-   interactively to sign in).
+3. **Google Antigravity CLI** (`agy`) — for every `tri-*` skill
+   (`/tri-review`, `/tri-plan`, `/tri-decide`, `/tri-strategy`);
+   authenticated with a Google plan login (run `agy` once interactively to
+   sign in).
 
 The first two are needed; the whole point is independent vendors. The third
 adds a tie-breaker.
@@ -112,11 +125,12 @@ names, and the stale copy can shadow the auto-updating plugin.
 
 Plugin-installed skills are namespaced: invoke them as `/crosscheck:dual-plan`,
 `/crosscheck:dual-review`, `/crosscheck:tri-plan`, `/crosscheck:tri-review`,
-and `/crosscheck:tri-decide`. (If they don't show up immediately, restart
-Claude Code.)
+`/crosscheck:tri-decide`, and `/crosscheck:tri-strategy`. (If they don't show
+up immediately, restart Claude Code.)
 
 **Option B — plain copy** (skills appear unnamespaced as `/dual-plan`,
-`/dual-review`, `/tri-plan`, `/tri-review`, and `/tri-decide`):
+`/dual-review`, `/tri-plan`, `/tri-review`, `/tri-decide`, and
+`/tri-strategy`):
 
 ```bash
 git clone https://github.com/SameerKhan/model-crosscheck
@@ -136,8 +150,8 @@ Copy-Item -Recurse -Force model-crosscheck\plugins\crosscheck\skills\* "$env:USE
 
 Either way, you can also just say **"dual plan this feature"**,
 **"tri plan this feature"**, **"dual review this branch"**,
-**"tri review this branch"**, or **"tri decide this"** in Claude Code — no
-slash command needed.
+**"tri review this branch"**, **"tri decide this"**, or **"tri strategy
+this"** in Claude Code — no slash command needed.
 
 ## Not on Claude Code? (Cursor, Antigravity, etc.)
 
@@ -207,7 +221,8 @@ The identifiers moved with it, in v2.0.0:
 | namespace | `/dual-ai:tri-review` | `/crosscheck:tri-review` |
 
 **The existing skill names did not change** — `dual-plan`, `dual-review`,
-`tri-plan`, `tri-review` (`tri-decide` was added after the rename).
+`tri-plan`, `tri-review` (`tri-decide` and `tri-strategy` were added after
+the rename).
 "dual" and "tri" are wrong as an umbrella but exactly
 right at the skill level, where they tell you how many models that particular
 workflow runs. So `/crosscheck:dual-plan` is not a typo: a two-model plan

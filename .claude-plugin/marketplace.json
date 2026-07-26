@@ -1,6 +1,6 @@
 {
   "name": "model-crosscheck",
-  "description": "Multi-model adversarial workflows for Claude Code: Claude + OpenAI Codex CLI (+ optionally Google Gemini) as independent critics on the same plan, diff, or architecture decision.",
+  "description": "Multi-model adversarial workflows for Claude Code: Claude + OpenAI Codex CLI (+ optionally Google Gemini) as independent critics on the same plan, diff, architecture choice, or business decision.",
   "owner": {
     "name": "Sameer Ahmed Khan"
   },
@@ -12,7 +12,7 @@
       "name": "crosscheck",
       "displayName": "Model Crosscheck",
       "source": "./plugins/crosscheck",
-      "description": "Multi-model workflows for Claude Code: /dual-plan and /tri-plan (Claude drafts, one or two rival models critique until convergence), /dual-review and /tri-review (independent reviewers on the same diff), and /tri-decide (three blind proposals plus anonymized cross-examination for hard-to-reverse architecture decisions)."
+      "description": "Multi-model workflows for Claude Code: /dual-plan and /tri-plan (rival models critique a plan until convergence), /dual-review and /tri-review (independent reviewers on the same diff), /tri-decide (architecture decisions), and /tri-strategy (business decisions from three assigned lenses)."
     }
   ]
 }
