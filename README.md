@@ -35,6 +35,11 @@ on the same work, instead of trusting any one model alone:
   Points both critics raise independently are treated as near-certain;
   single-critic points are verified against the code before the plan
   changes. Closes with `/tri-review` on the finished diff.
+  Each critic runs **two separate lenses** — *is this correct?* and *would
+  you authorize this to run?* — because reviewers who share one prompt
+  share its blind spots, however many of them there are. Lens A includes an
+  **executable-claim check**: open every API the plan says it will call and
+  confirm the capability exists with the signature assumed.
 - **`/tri-decide`** — for architecture and technology decisions rather than
   code. All three models propose an approach **blind** (none sees the
   others), each argues the strongest case *against its own* recommendation,

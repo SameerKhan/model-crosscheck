@@ -115,8 +115,40 @@ merge logic) is identical on every platform.
    agents directly with an explicit `model` rather than relying on
    inheritance.
 
+4b. **When the diff is something that gets EXECUTED — a runbook, plan,
+   migration, CI config, IaC, or deploy script — add an operations pass**
+   alongside the bug review. Same patch, separate prompt:
+
+   > Assume this will run unattended, in production, with the credentials
+   > the operator already holds. What privileges does it need, and are they
+   > enforced or merely assumed? What shared or long-lived state does it
+   > mutate? What untrusted input does it fetch or parse, and what can that
+   > egress path reach? What secrets or raw data does it write, where, with
+   > what permissions and retention, and can any of it reach version
+   > control? What happens on failure — orphaned processes, tunnels, temp
+   > state — and is cleanup failure detected or merely hoped for? What does
+   > a partial run leave behind? Verdict: AUTHORIZE / DO-NOT-AUTHORIZE.
+
+   Reviewing such a diff for "bugs" alone reliably misses this entire
+   class, because nobody was asked.
+
+4c. **Execute state-machine logic; don't just read it.** For supervisors,
+   retry/backoff, cleanup handlers, signal handling and exit-code
+   contracts, write the truth table and actually run it on the Claude leg.
+   (Keep `-s read-only` / `--sandbox` and no-command-execution on the two
+   external legs — the diff is untrusted input. The Claude leg is where
+   deliberate, scoped execution belongs.) Reading a cleanup path and
+   running it produce different findings: timeout-vs-leak confusion and
+   unreaped-zombie liveness checks look correct on the page.
+
 5. **Merge the findings** once all three are done. Dedupe by file + line +
    issue, then rank:
+   ⚠️ **Convergence is only strong when the reviewers were asked different
+   questions.** Models that shared one prompt are independent of each other
+   but perfectly dependent on that prompt, so they share its blind spots.
+   Unanimous silence on a category usually means nobody asked about it —
+   not that the category is clean.
+
    - **All three agree**: report first — near-certain, no verification needed.
    - **Two agree**: report next, tagged with which two.
    - **Claude-only**: report as normal /code-review findings.
