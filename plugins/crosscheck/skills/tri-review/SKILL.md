@@ -195,11 +195,13 @@ merge logic) is identical on every platform.
   permission", add a read-only rule there — never use
   `--dangerously-skip-permissions`.
 - Pass `--model` explicitly and pick the newest **Gemini** model your plan
-  offers (e.g. `gemini-3.6-flash-high`); a newer flash tier at high effort
-  tends to out-review an older pro tier. Note that `agy models` may also
-  list Claude and GPT-OSS models — don't pick those, or two of your three
-  "independent" reviewers share a lab and the agreement signal is void.
-  There is no Gemini 3.5 Pro — don't guess model names.
+  offers (e.g. `gemini-3.7-flash-high` as of 2026-08); a newer flash tier at
+  high effort tends to out-review an older pro tier. Note that `agy models`
+  may also list Claude and GPT-OSS models — don't pick those, or two of your
+  three "independent" reviewers share a lab and the agreement signal is void.
+  Run `agy models` and copy a name from the list rather than guessing one:
+  new generations appear silently, and the pro line lags the flash line
+  (there is no Gemini 3.5/3.6/3.7 Pro), so an invented name just fails.
 - Auth error / "Please sign in" → tell the user to run `agy` in their own
   terminal and complete the Google login; do not attempt to re-auth headless
   (it requires an interactive OAuth code paste).
