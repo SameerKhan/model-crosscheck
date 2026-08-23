@@ -1,4 +1,4 @@
-# model-crosscheck — two (or three) models, one codebase
+# model-crosscheck — two (or three) models, checking each other
 
 > **Renamed from `dual-ai-skills`.** Installed before 2026-07-25? Run
 > `/plugin marketplace update dual-ai-skills`; the plugin is recognized as
@@ -7,7 +7,25 @@
 
 [Claude Code](https://claude.com/claude-code) skills that put **Claude,
 OpenAI's Codex CLI — and optionally Google's Gemini — in an adversarial loop**
-on the same work, instead of trusting any one model alone:
+on the same work, instead of trusting any one model alone.
+
+## Which one do I want?
+
+| You are about to… | Use | You get |
+|---|---|---|
+| write code from a plan | `/dual-plan` · `/tri-plan` | a plan rival models signed off on, before a line is written |
+| merge a diff | `/dual-review` · `/tri-review` | findings ranked by how many independent models found them |
+| pick a datastore, framework, protocol | `/tri-decide` | a decision record — options, bets, cruxes, revisit trigger |
+| price, package, or bet the business | `/tri-strategy` | a strategy memo argued from three assigned lenses |
+| rely on an outside fact | `/tri-research` | a ledger where every claim is re-fetched and status-marked |
+
+Rule of thumb: **`dual` = Claude + Codex. `tri` = both plus Gemini.** More
+models is not automatically better — see [When *not* to use
+these](#when-not-to-use-these).
+
+## The skills
+
+### On code
 
 - **`/dual-plan`** — Claude drafts an implementation plan, Codex critiques it
   against the actual codebase (read-only), Claude adjudicates each point, and
@@ -40,6 +58,8 @@ on the same work, instead of trusting any one model alone:
   share its blind spots, however many of them there are. Lens A includes an
   **executable-claim check**: open every API the plan says it will call and
   confirm the capability exists with the signature assumed.
+### On decisions and facts
+
 - **`/tri-decide`** — for architecture and technology decisions rather than
   code. All three models propose an approach **blind** (none sees the
   others), each argues the strongest case *against its own* recommendation,
@@ -64,7 +84,6 @@ on the same work, instead of trusting any one model alone:
   tools, since fabricated benchmarks are the failure mode nothing else here
   would catch. Output is a strategy memo with months-to-unwind, who bears
   the cost, the cruxes, and a revisit trigger.
-
 - **`/tri-research`** — the **evidence layer** the others assume. The obvious
   design — three models research the same question, merge three reports — is
   the one to avoid: they hit the same search results, and merging prose is
@@ -96,8 +115,18 @@ from a different lab**. Claude and Codex are trained on different data with
 different methods; they make *different* mistakes. That difference is the
 product:
 
-- **Agreement is signal.** When two unrelated models flag the same line,
-  it's almost always a real bug — triage those first.
+- **Agreement is signal — when there is a ground truth.** Two unrelated
+  models flagging the same line is almost always a real bug; two re-fetching
+  a page and quoting the same string is almost always the real number.
+  Triage those first. This is what `/dual-review`, `/tri-review` and
+  `/tri-research` are built on.
+- **Agreement is *not* signal when there isn't one.** On a design or
+  strategy question there is nothing to check against, and three models
+  trained on overlapping corpora will happily converge on the same
+  conventional wisdom — that is one opinion sampled three times, not three
+  confirmations. So `/tri-decide` and `/tri-strategy` deliberately invert
+  the rule: convergence gets challenged as an unexamined default, and
+  divergence is the product.
 - **Disagreement is a map.** Findings only one model raises tell you exactly
   where human judgment is needed, instead of drowning you in one model's
   confident guesses.
@@ -109,6 +138,99 @@ product:
 
 The result: fewer bugs reach your main branch, and the review you read is
 pre-triaged by confidence instead of being one long unweighted list.
+
+## What it actually looks like
+
+> Commands are written unnamespaced below (`/tri-review`). That is the
+> plain-copy form — if you installed the **plugin**, which is the recommended
+> route, prefix everything with `crosscheck:` (`/crosscheck:tri-review`). See
+> [Install](#install).
+
+### `/tri-review` before a merge
+
+You type `/tri-review`. Claude scopes the diff, launches Codex and Gemini in
+parallel, reviews it itself, then merges. Findings arrive tagged by who found
+them — this is abridged real output from the review of this repo's own v2.4.0
+commit:
+
+```
+[codex+gemini] tri-research/SKILL.md — `codex exec -` treats stdin as its
+               ENTIRE prompt. This pipes the bare ledger, so the audit brief
+               never reaches Codex; it will summarise the table instead of
+               auditing it.
+
+[codex]        tri-research/SKILL.md — `-s read-only` is a write boundary, not
+               a confidentiality one. With web search on and MCP servers
+               configured, an injected page can put looked-up data into a
+               search query. CONFIRMED against the config.
+
+[claude]       tri-research/SKILL.md — the worked example is overstated: one
+               leg's answer was true-but-partial, not wrong.
+```
+
+Read the top tag first. `[codex+gemini]` means two models that never saw each
+other's output landed on the same line — that is the finding to fix before you
+read anything else. Single-model findings sit below it, already verified
+against the code; anything that survived a concede-or-defend round without
+resolving arrives as `[disputed]`, with both positions, for you to rule on.
+
+That run also produced two findings that did *not* make the report: Gemini
+claimed a CLI subcommand did not exist, was shown the terminal transcript on
+the rebuttal round, and conceded. Refuted findings are dropped rather than
+padded into the list.
+
+### `/tri-research` before you quote a number
+
+You type `/tri-research what does Buffer actually charge per channel?` Claude
+fetches and writes a ledger; Codex and Gemini re-fetch every row. The output is
+the ledger, marked up:
+
+```
+| ID | Claim                        | Value           | Source (literal string)              | Status         |
+|----|------------------------------|-----------------|--------------------------------------|----------------|
+| R1 | Essentials, monthly billing  | ~~$5~~ → $6/mo  | buffer.com/pricing "$6 / month …"    | CORRECTED      |
+| R2 | Essentials, annual billing   | $5/mo ($60/yr)  | buffer.com/pricing "billed annually" | CONFIRMED-BY-2 |
+```
+
+R1 is the whole point. Claude's own fetch put **$5** in the ledger as the
+monthly rate, and Codex's answer led with **$5** too — correctly, for the
+*annual* term. The same token, two different questions, and only one leg
+surfaced both. Agreement on the number would have shipped the wrong monthly
+price; re-reading the page caught it. That is why disputes here are settled by
+the source and never by vote.
+
+### A full pass on something that matters
+
+The skills chain. A realistic sequence before a hard-to-reverse bet:
+
+```
+/tri-research   → a ledger of verified facts   (kills the wrong numbers early)
+/tri-strategy   → a memo arguing three lenses over that ledger
+/tri-plan       → an implementation plan two rival critics signed off
+/tri-review     → the diff, reviewed by three models before merge
+```
+
+Each step's output is the next step's input — `/tri-research`'s ledger *is*
+`/tri-strategy`'s evidence pack. You do not need the whole chain; most work
+needs one link of it.
+
+## When *not* to use these
+
+These skills are deliberately expensive: several model calls, minutes of
+wall-clock, and your own attention on the merged report. Skip them when:
+
+- **The decision is reversible.** `/tri-decide` and `/tri-strategy` both open
+  by refusing two-way doors. If you can swap it back in a day, just pick one
+  and move — an experiment answers in two weeks what deliberation cannot
+  answer at all.
+- **The change is trivial.** A rename, a copy tweak, a dependency bump. One
+  reviewer is enough; three is theatre.
+- **You only need one fact from one authoritative source.** Fetch it. That is
+  `/tri-research`'s own step-0 gate, and it turns the skill away more often
+  than it runs it.
+- **You have not written the constraints down.** Every one of these skills is
+  mostly as good as its brief. Three models handed a vague question produce
+  three blog posts, quickly.
 
 ## Prerequisites
 
@@ -236,7 +358,7 @@ Two options:
 ## Renamed from dual-ai-skills
 
 This repo was `SameerKhan/dual-ai-skills` until 2026-07-25. It shipped two
-skills then; it ships four now, half of them three-model, so "dual" described
+skills then; it ships seven now, five of them three-model, so "dual" described
 the wrapper badly. `model-crosscheck` names the mechanism instead — independent
 models cross-checking each other — which stays accurate at two models, three,
 or more.
@@ -251,10 +373,8 @@ The identifiers moved with it, in v2.0.0:
 | namespace | `/dual-ai:tri-review` | `/crosscheck:tri-review` |
 
 **The existing skill names did not change** — `dual-plan`, `dual-review`,
-`tri-plan`, `tri-review` (`tri-decide`, `tri-strategy` and `tri-research`
-were added after
-the rename).
-"dual" and "tri" are wrong as an umbrella but exactly
+`tri-plan`, `tri-review` (`tri-decide`, `tri-strategy` and `tri-research` were
+added after the rename). "dual" and "tri" are wrong as an umbrella but exactly
 right at the skill level, where they tell you how many models that particular
 workflow runs. So `/crosscheck:dual-plan` is not a typo: a two-model plan
 inside the crosscheck plugin.
