@@ -14,9 +14,9 @@ than a codebase they can read, and **no number may be invented**.
 
 **The other two models cannot see your business.** In /tri-review and
 /tri-decide, Codex and Gemini earn their seat by reading the actual code —
-they check claims against ground truth. Here they have no access to your
-billing system, your product analytics, your support inbox, or your
-customers. Left to themselves they reason from generic priors, and those
+they check claims against ground truth. Here, **by default**, they have no
+access to your billing system, your product analytics, your support inbox,
+or your customers. Left to themselves they reason from generic priors, and those
 priors skew hard toward US venture-backed SaaS: grow-at-all-costs, move
 upmarket, land-and-expand. For a bootstrapped team, a price-sensitive
 market, or a non-US cost base, that advice arrives confidently and is
@@ -33,6 +33,14 @@ Two consequences, both load-bearing:
    to deliberate over reversible choices, writing down a revisit trigger.
    Be honest with the user about that — do not present model consensus as
    though it were evidence.
+
+**Check that default rather than assuming it.** An MCP server changes it:
+`codex exec` loads whatever `~/.codex/config.toml` configures, and `agy mcp
+list` shows the Gemini side. Where a leg *can* re-derive a first-party
+number, that is a reason to run /tri-research over the pack — not a licence
+to let a leg wander off the pack mid-argument, and not before reading that
+skill's confidentiality note, because a web-enabled model holding production
+data is an exfiltration path.
 
 **Agreement is not signal** — even more so than in /tri-decide. Three
 models trained on overlapping corpora will converge on the same strategy-
@@ -101,6 +109,12 @@ containing:
 - **Hard constraints**: cash, headcount, what the user refuses to do, what
   was already tried and why it failed.
 - **What "this worked" looks like** at a named date, in a number.
+
+**If the numbers are load-bearing, run /tri-research on the pack first** —
+it is the only skill here that checks them. Without it, a wrong figure in
+the pack propagates through both critiques untouched (they are forbidden
+from inventing numbers, so they faithfully reason from yours) and lands in
+the memo.
 
 Then state the **information asymmetry** plainly in the brief: Claude
 assembled this pack and holds the live tools; the other two legs know only

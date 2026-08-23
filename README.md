@@ -65,6 +65,22 @@ on the same work, instead of trusting any one model alone:
   would catch. Output is a strategy memo with months-to-unwind, who bears
   the cost, the cruxes, and a revisit trigger.
 
+- **`/tri-research`** — the **evidence layer** the others assume. The obvious
+  design — three models research the same question, merge three reports — is
+  the one to avoid: they hit the same search results, and merging prose is
+  where an unsourced number survives. Instead: Claude researches and writes a
+  **claim ledger** (one row per load-bearing fact, with the literal string, the
+  URL, and the date), then Codex and Gemini **re-fetch every source and try to
+  break it** — CONFIRMED / CORRECTED / UNVERIFIABLE per row, plus what the
+  ledger is missing. Here, unlike `/tri-decide`, **agreement is signal** — a
+  claim has ground truth. But **majority is not truth**: on a live test all
+  three read the same pricing page and two returned the same number for
+  *different billing terms*, so a merge that counted agreement would have
+  shipped a confidently wrong price. Disputes are settled by re-reading the
+  source, never by vote. Output is one ledger where every row carries a status
+  — confirmed-by-N, corrected, disputed, unverified, unsourced, single-source
+  — which is exactly what `/tri-strategy` wants as its evidence pack.
+
 ## Why this exists
 
 Every AI coding agent has the same failure mode: **it reviews its own work
@@ -100,7 +116,8 @@ pre-triaged by confidence instead of being one long unweighted list.
 2. **OpenAI Codex CLI** — `codex` on your PATH, authenticated
    (`codex login` or via the Codex desktop app).
 3. **Google Antigravity CLI** (`agy`) — for every `tri-*` skill
-   (`/tri-review`, `/tri-plan`, `/tri-decide`, `/tri-strategy`);
+   (`/tri-review`, `/tri-plan`, `/tri-decide`, `/tri-strategy`,
+   `/tri-research`);
    authenticated with a Google plan login (run `agy` once interactively to
    sign in).
 
@@ -130,12 +147,13 @@ names, and the stale copy can shadow the auto-updating plugin.
 
 Plugin-installed skills are namespaced: invoke them as `/crosscheck:dual-plan`,
 `/crosscheck:dual-review`, `/crosscheck:tri-plan`, `/crosscheck:tri-review`,
-`/crosscheck:tri-decide`, and `/crosscheck:tri-strategy`. (If they don't show
+`/crosscheck:tri-decide`, `/crosscheck:tri-strategy`, and
+`/crosscheck:tri-research`. (If they don't show
 up immediately, restart Claude Code.)
 
 **Option B — plain copy** (skills appear unnamespaced as `/dual-plan`,
-`/dual-review`, `/tri-plan`, `/tri-review`, `/tri-decide`, and
-`/tri-strategy`):
+`/dual-review`, `/tri-plan`, `/tri-review`, `/tri-decide`,
+`/tri-strategy`, and `/tri-research`):
 
 ```bash
 git clone https://github.com/SameerKhan/model-crosscheck
@@ -187,6 +205,13 @@ Two options:
   official `code-review` plugin command fans out to Haiku and Sonnet workers
   — so the gate covers the main-loop verify/merge, and you should pin an
   explicit model if you need the finding-generation on Opus too.
+- **Codex needs web search switched on explicitly, and `--search` is not the
+  way to do it in `exec`.** The flag exists on the interactive TUI only;
+  `codex exec --search` exits 2 with "unexpected argument". Use
+  `-c tools.web_search=true`, which works alongside `-s read-only` because
+  the tool is server-side, not shell egress. Gemini via `agy` needs no flag —
+  it fetches with `read_url_content` under `--sandbox`. `/tri-research`
+  depends on both.
 - **Never let both models write to the same working tree.** One drives, the
   other critiques. The optional co-coder mode in `/dual-plan` uses an
   isolated `git worktree` for exactly this reason — and critique/review runs
@@ -226,7 +251,8 @@ The identifiers moved with it, in v2.0.0:
 | namespace | `/dual-ai:tri-review` | `/crosscheck:tri-review` |
 
 **The existing skill names did not change** — `dual-plan`, `dual-review`,
-`tri-plan`, `tri-review` (`tri-decide` and `tri-strategy` were added after
+`tri-plan`, `tri-review` (`tri-decide`, `tri-strategy` and `tri-research`
+were added after
 the rename).
 "dual" and "tri" are wrong as an umbrella but exactly
 right at the skill level, where they tell you how many models that particular

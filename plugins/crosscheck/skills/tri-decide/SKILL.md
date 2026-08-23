@@ -208,5 +208,8 @@ in the record — the reasoning is what a future reader needs most.
 - Scale to the stakes: for a medium decision, one blind round and a
   written record is enough; skip the cross-examination round and say that
   you skipped it.
+- The facts gathered when resolving cruxes are themselves unreviewed —
+  Claude fetches them and nothing checks them. If several are load-bearing,
+  `/tri-research` is the gate for that.
 - If the decision produces an implementation, `/tri-plan` and then
   `/tri-review` are the next two gates.

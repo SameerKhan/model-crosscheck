@@ -12,7 +12,7 @@
       "name": "crosscheck",
       "displayName": "Model Crosscheck",
       "source": "./plugins/crosscheck",
-      "description": "Multi-model workflows for Claude Code: /dual-plan and /tri-plan (rival models critique a plan until convergence), /dual-review and /tri-review (independent reviewers on the same diff), /tri-decide (architecture decisions), and /tri-strategy (business decisions from three assigned lenses)."
+      "description": "Multi-model workflows for Claude Code: /dual-plan and /tri-plan (rival models critique a plan until convergence), /dual-review and /tri-review (independent reviewers on the same diff), /tri-decide (architecture decisions), /tri-strategy (business decisions from three assigned lenses), and /tri-research (a claim ledger two rival models re-fetch and try to break)."
     }
   ]
 }
