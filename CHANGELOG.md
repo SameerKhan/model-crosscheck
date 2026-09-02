@@ -5,6 +5,14 @@ Dates are commit dates. Every entry since 1.2.1 was itself reviewed with
 `/tri-review` before it shipped; the findings that changed the release are
 noted where they mattered.
 
+## 2.6.1 (2026-09-03)
+
+- Style only: every em-dash in the README and the seven skills recast
+  (headings take a colon, prompt output formats use `|`, the rest commas).
+  No command, flag, or rule changed; the receipt contract in the Gemini
+  prompt now reads `INSPECTED: <n> | <first header>` and findings as
+  `file:line | issue | why`.
+
 ## 2.6.0 (2026-09-03)
 
 - **Model gates on every skill, decidable and floor-based.** `/dual-plan`
