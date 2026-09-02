@@ -320,13 +320,16 @@ Two options:
   for Gemini and `-c` for Codex and then leave the Claude seat on whatever
   the session happened to be running. Claude's seat is the load-bearing one
   — it holds the repo context, verifies the other models' findings, and
-  writes the merge — so run it on the strongest tier you have (Opus). The
-  `/tri-*` skills now check the session model up front and stop rather than
-  run a "triple review" with a downgraded Claude seat. Caveat worth knowing:
+  writes the merge — so run it on the newest top-tier Claude you have
+  (as of 2026-09: Fable 5.1, then Fable 5, then Opus 5). Treat "strongest" as
+  a moving target, not a name to pin: a tier hard-coded last quarter quietly
+  becomes the second-best seat when the next model ships. The `/tri-*`
+  skills check the session model up front and stop rather than run a
+  "triple review" with a downgraded Claude seat. Caveat worth knowing:
   `/code-review` does not necessarily inherit your session model — the
   official `code-review` plugin command fans out to Haiku and Sonnet workers
   — so the gate covers the main-loop verify/merge, and you should pin an
-  explicit model if you need the finding-generation on Opus too.
+  explicit model if you need the finding-generation on the top tier too.
 - **Codex needs web search switched on explicitly, and `--search` is not the
   way to do it in `exec`.** The flag exists on the interactive TUI only;
   `codex exec --search` exits 2 with "unexpected argument". Use

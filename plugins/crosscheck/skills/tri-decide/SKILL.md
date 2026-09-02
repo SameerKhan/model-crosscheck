@@ -33,17 +33,21 @@ that does not exist.
 
 | Leg | Model | Where it's set |
 |---|---|---|
-| **Claude** (proposal, crux resolution, adjudication, the record) | the strongest Claude tier available (Opus) | the session model — see below |
-| Codex proposer | whatever `~/.codex/config.toml` pins | `-c` override, effort forced to `high` |
+| **Claude** (proposal, crux resolution, adjudication, the record) | the newest top-tier Claude available (2026-09: Fable 5.1) | the session model — see below |
+| Codex proposer | the CLI's default under config isolation (`-c model=...` to override) | `--ephemeral --ignore-user-config -s read-only`, effort forced to `high` |
 | Gemini proposer | newest Gemini on the plan | `--model` on every `agy` call |
 
 Claude drafts an option, resolves the cruxes, judges the comparison, and
 writes the record — more load-bearing here than in any sibling skill. Check
 the active model (stated in the session's environment context; the user can
-confirm with `/status`) **before step 1**. If it is not the strongest tier,
-say which model the Claude leg would run on and ask the user to switch
-(`/model opus`) rather than spending two CLIs on a weak proposal. Pin any
-subagent this skill spawns to the same tier explicitly.
+confirm with `/status`) **before step 1**. If it is not the newest top-tier
+Claude the plan offers (as of 2026-09: Fable 5.1, then Fable 5, then Opus 5
+— a moving target, not a name to pin), say which model the Claude leg would run
+on and ask the user to switch (`/model` lists the options) rather than
+spending two CLIs on a weak proposal. The dated example is a **floor, not an
+exact match** — a top tier newer than it also passes; stop only for
+fast/cheap tiers (Haiku/Sonnet-class) or a top tier older than the example.
+Pin any subagent this skill spawns to the same tier explicitly.
 
 ## Cross-platform — the snippets below are bash/zsh
 
@@ -101,7 +105,7 @@ is the point, and it is on Claude to preserve it. Do not open the critic
 output files until Claude's own proposal is written to disk.
 
 ```bash
-codex exec -s read-only -c model_reasoning_effort="high" - < /path/to/brief.md
+codex exec --ephemeral --ignore-user-config -s read-only -c model_reasoning_effort="high" - < /path/to/brief.md
 ```
 
 ```bash
@@ -110,7 +114,11 @@ agy --sandbox --model <newest-gemini-on-plan> --print-timeout 12m -p "<brief, na
 
 Sandbox flags are mandatory (`-s read-only`, `--sandbox`) — a proposer has
 no business writing to the tree. Remember `agy -p` does not read stdin;
-name the brief's absolute path in the prompt.
+name the brief's absolute path in the prompt, and require each external
+reply to open with one line — `READ: <the brief's first line, verbatim>`
+(or `FILE-NOT-READ`). A fluent proposal from a leg that never read the
+brief is otherwise undetectable (see /tri-review's Notes on hollow
+verdicts); a reply without the READ line is discarded and re-run once.
 
 Ask each leg for exactly this, and require the same of Claude's proposal:
 
@@ -193,10 +201,11 @@ in the record — the reasoning is what a future reader needs most.
 
 ## Notes
 
-- Plumbing (install, auth, the `codex-code-mode-host` symlink trap, the
-  `agy` no-stdin trap, keeping the Antigravity allowlist read-only) is
-  shared with the sibling skills — see **/dual-review** and **/tri-review**
-  Notes.
+- Plumbing (install, auth, the `codex-code-mode-host` symlink trap, config
+  isolation via `--ephemeral --ignore-user-config` and why `-s read-only`
+  doesn't cover MCP, the `agy` no-stdin trap, the read-receipt contract for
+  hollow replies, keeping the Antigravity allowlist read-only) is shared
+  with the sibling skills — see **/dual-review** and **/tri-review** Notes.
 - Pass `--model` explicitly on the Gemini leg and use the newest Gemini
   flash-high tier your plan offers — a newer flash tier at high effort
   holds up on open-ended reasoning, not just patch review. Never pick a

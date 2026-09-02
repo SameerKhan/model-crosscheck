@@ -52,15 +52,18 @@ numerically.
 
 | Leg | Model | Where it's set |
 |---|---|---|
-| **Claude** (evidence pack, one lens, crux resolution, the memo) | the strongest Claude tier available (Opus) | the session model — check before step 0 |
-| Codex | whatever `~/.codex/config.toml` pins | `-c` override, effort forced to `high` |
+| **Claude** (evidence pack, one lens, crux resolution, the memo) | the newest top-tier Claude available (2026-09: Fable 5.1) | the session model — check before step 0 |
+| Codex | the CLI's default under config isolation (`-c model=...` to override) | `--ephemeral --ignore-user-config -s read-only`, effort forced to `high` |
 | Gemini | newest Gemini on the plan | `--model` on every `agy` call |
 
 Claude assembles the evidence, argues a lens, resolves the cruxes, and
 writes the memo — more load-bearing than in any sibling skill, which is
 also why the conflict of interest below must be stated out loud. If the
-session is not on the strongest tier, say so and ask the user to switch
-before step 0.
+session is not on the newest top-tier Claude the plan offers (the dated
+example — Fable 5.1 as of 2026-09 — is a floor that goes stale, not the
+rule: a newer top tier also passes), say so and ask the user to switch
+before step 0; stop only for fast/cheap tiers (Haiku/Sonnet-class) or a
+top tier older than the example.
 
 ## Cross-platform
 
@@ -145,14 +148,18 @@ Launch the external legs in the background first, then write Claude's own
 lens **without opening their output** — blindness is on Claude to preserve.
 
 ```bash
-codex exec -s read-only -c model_reasoning_effort="high" - < /path/to/brief.md
+codex exec --ephemeral --ignore-user-config -s read-only -c model_reasoning_effort="high" - < /path/to/brief.md
 ```
 
 ```bash
 agy --sandbox --model <newest-gemini-on-plan> --print-timeout 12m -p "<brief, naming the evidence pack's absolute path to read_file>"
 ```
 
-Ask each leg for exactly this:
+Require each external reply to open with one line — `READ: <the evidence
+pack's first line, verbatim>` (or `FILE-NOT-READ`); a lens argument
+without it means the pack was never read (see /tri-review's Notes on
+hollow verdicts) — discard it and re-run once. Ask each leg for exactly
+this:
 
 > You are arguing the **<LENS>** case. Read the evidence pack and
 > recommend ONE course of action, reasoned from that lens specifically.
@@ -241,10 +248,14 @@ makes the revisit trigger interpretable.
 
 ## Notes
 
-- Plumbing (install, auth, sandbox flags, the `agy` no-stdin trap) is
-  shared with the sibling skills — see **/tri-review** and **/tri-decide**
-  Notes. Sandbox flags are mandatory here too even though nothing is being
-  built: an untrusted evidence pack is still untrusted input.
+- Plumbing (install, auth, sandbox flags, config isolation via
+  `--ephemeral --ignore-user-config` — `-s read-only` doesn't cover MCP,
+  and a leg holding billing/database MCP servers while parsing an evidence
+  pack is the highest-stakes variant of that exposure — the `agy` no-stdin
+  trap, the read-receipt contract) is shared with the sibling skills — see
+  **/tri-review** and **/tri-decide** Notes. Sandbox flags are mandatory
+  here too even though nothing is being built: an untrusted evidence pack
+  is still untrusted input.
 - Never pick a Claude or GPT-OSS model from `agy models` — one lab on two
   of three seats voids the independence the skill is built on.
 - If one CLI is unavailable, run two lenses and **say which lens is

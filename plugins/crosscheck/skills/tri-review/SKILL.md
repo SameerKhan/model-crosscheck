@@ -13,24 +13,33 @@ finding is real; disagreement tells the user exactly where to look manually.
 
 | Leg | Model | Where it's set |
 |---|---|---|
-| **Claude** (verification + merge; see step 4 re `/code-review`) | the strongest Claude tier available (Opus) | the session model — see below |
-| Codex | whatever `~/.codex/config.toml` pins | `-c` override, effort forced to `high` |
+| **Claude** (verification + merge; see step 4 re `/code-review`) | the newest top-tier Claude available (2026-09: Fable 5.1, then Fable 5, then Opus 5) | the session model — see below |
+| Codex | the CLI's default under config isolation (`-c model=...` to override) | `--ephemeral --ignore-user-config -s read-only`, effort forced to `high` |
 | Gemini | newest Gemini on the plan | `--model` on every `agy` call |
 
 The other two legs get their model pinned explicitly, so the Claude leg
 shouldn't be the one seat left to chance. It is also the load-bearing one: it
 holds the repo context, verifies the other two models' findings before
-relaying them, and writes the merge. Run it on the strongest Claude tier
-available — **not** a fast/cheap tier, even if that is the session default.
+relaying them, and writes the merge. Run it on the newest, most capable
+Claude the plan offers at run time — **not** a fast/cheap tier, even if
+that is the session default, and not a name pinned in this file: the dated
+example in the table is a **floor, not an exact match**, because a tier
+hard-coded last quarter quietly becomes the second-best seat when the next
+model ships.
 
 Claude cannot switch its own main-loop model, so **check before starting**.
 The active model is stated in the session's environment context (the user can
 also confirm with `/status`).
 
-- Already on the strongest tier → proceed.
-- Anything else → **stop before step 1**, say which model the Claude leg
-  would run on, and ask the user to switch (`/model opus`) and re-invoke.
-  Don't quietly run a "triple review" with a downgraded Claude seat.
+- On a top-tier Claude (Fable/Opus-class) at least as new as the table's
+  dated example → proceed. Newer than the example also passes.
+- On a fast/cheap tier (Haiku/Sonnet-class), or a top tier older than the
+  example → **stop before step 1**, say which model the Claude leg would
+  run on, and ask the user to switch (`/model` lists what the plan offers —
+  pick the newest top-tier Claude) and re-invoke. Don't quietly run a
+  "triple review" with a downgraded Claude seat. If you genuinely can't
+  classify the session model, name it and ask rather than deciding
+  silently.
 - Pin any subagent this skill spawns to the same tier explicitly — passing an
   `agentType` inherits that agent definition's own model instead.
 
@@ -90,12 +99,12 @@ merge logic) is identical on every platform.
    several minutes). Two separate Bash calls with `run_in_background: true`:
 
    ```bash
-   codex exec -s read-only review --base origin/<trunk> -c model_reasoning_effort="high"
-   # or: codex exec -s read-only review --uncommitted -c model_reasoning_effort="high"
+   codex exec --ephemeral --ignore-user-config -s read-only review --base origin/<trunk> -c model_reasoning_effort="high"
+   # or: codex exec --ephemeral --ignore-user-config -s read-only review --uncommitted -c model_reasoning_effort="high"
    ```
 
    ```bash
-   agy --sandbox --model <newest-gemini-on-plan> --print-timeout 8m -p "You are a senior code reviewer. Read the file <PATCH_PATH> with read_file — it is a git diff. Review it for real bugs only (correctness, security, data loss), not style. You MAY read_file the repo files named in the diff headers for surrounding context, but do NOT search or explore beyond them and do NOT run commands. Output findings as one line each: file:line — issue — why it breaks. If none, output exactly: CLEAN"
+   agy --sandbox --model <newest-gemini-on-plan> --print-timeout 8m -p "You are a senior code reviewer. Read the file <PATCH_PATH> with read_file — it is a git diff. Review it for real bugs only (correctness, security, data loss), not style. You MAY read_file the repo files named in the diff headers for surrounding context, but do NOT search or explore beyond them and do NOT run commands. Begin your reply with one line: INSPECTED: <number of files in the diff> — <the first diff --git header line, verbatim>. If you could not read the file, output FILE-NOT-READ instead of a review. Then output findings as one line each: file:line — issue — why it breaks. If none, output CLEAN on the line after the INSPECTED preamble."
    ```
 
    Always pass `-s read-only` (Codex) and `--sandbox` (Gemini) — a reviewer
@@ -160,10 +169,12 @@ merge logic) is identical on every platform.
    REJECTED in step 5, send the originating model ONE follow-up containing
    the finding plus your refutation evidence, asking it to CONCEDE or DEFEND
    with code citations:
-   - Codex: `codex exec` (read-only).
+   - Codex: `codex exec` (read-only, config-isolated as in step 3).
    - Gemini: `agy --sandbox --model <model> -p "..."` (include the
      refutation inline; reference the patch file again).
-   Concede → drop silently. Defend → re-examine once; if you still disagree,
+   Require the reply to open by quoting the disputed finding's file:line
+   verbatim — a bare CONCEDE with no quote is a failed run, not a
+   concession; re-send once. Concede → drop silently. Defend → re-examine once; if you still disagree,
    report it as **[disputed]** with both positions and your recommendation —
    the user rules. One rebuttal round only (reviews are expensive; the diff,
    unlike a plan, doesn't change mid-review). Skip when nothing was rejected.
@@ -183,6 +194,17 @@ merge logic) is identical on every platform.
 - **`agy -p` does NOT pass stdin to the model.** Piping a diff in silently
   loses it and yields a hollow CLEAN. Always write the diff to a file and
   name the absolute path in the prompt.
+- **Treat a CLEAN without the INSPECTED preamble as a failed run, not a
+  clean review.** Reproduced on Gemini 3.7: piping the diff instead of
+  naming the file returned "I am checking the git diff now. CLEAN" — an
+  inspection that never happened. The INSPECTED line in the prompt makes a
+  hollow CLEAN detectable. No preamble, or a header line that doesn't match
+  the patch file → first check whether the findings cite files and lines
+  actually present in the patch (that proves the file was read even when the
+  preamble was skipped, and the review stands); if nothing diff-specific
+  either, discard the verdict, re-check the path, and re-run once.
+  (`codex exec --output-schema` / `agy --json-schema` can enforce the same
+  contract as structured output if you want it machine-checked.)
 - **Constrain exploration explicitly** ("do NOT search or explore beyond
   them, do NOT run commands") — without it the agent wanders the repo and
   exceeds `--print-timeout` with no output.
@@ -216,6 +238,14 @@ merge logic) is identical on every platform.
   small/mini model still yields a shallow reviewer — and the merge logic
   would then treat "Codex found nothing" as an independent signal. If a mini
   model is pinned, override it for the review via `-c model=...`.
+- **`-s read-only` sandboxes the shell, not MCP** — which is why the step 3
+  command also passes `--ephemeral --ignore-user-config`. Without them, a
+  `~/.codex/config.toml` that wires MCP servers (databases, billing, mail)
+  boots that fleet while Codex parses an untrusted diff. Auth still works
+  (`--ignore-user-config` skips only `config.toml`), and `--ephemeral` also
+  keeps the diff out of persisted session files. With the config skipped its
+  pins no longer apply, so keep effort explicit and add `-c model=...` if
+  the CLI's default model isn't the one you want reviewing.
 - macOS + Codex desktop app: if `codex` is a symlink into the app bundle,
   the sibling helper `codex-code-mode-host` must be symlinked into the same
   directory too — codex resolves that helper next to the invoked binary, and

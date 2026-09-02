@@ -62,8 +62,8 @@ failure point across these skills, and this is the skill that reviews it.
 
 | Leg | Model | Where it's set |
 |---|---|---|
-| **Claude** (ledger, resolution, output) | the strongest Claude tier available (Opus) | the session model — check before step 0 |
-| Codex | whatever `~/.codex/config.toml` pins | `-c` override, effort forced `high`, **web search enabled** |
+| **Claude** (ledger, resolution, output) | the newest top-tier Claude available (2026-09: Fable 5.1) | the session model — check before step 0 |
+| Codex | the CLI's default under config isolation (`-c model=...` to override) | `--ephemeral --ignore-user-config -s read-only`, effort forced `high`, **web search enabled** |
 | Gemini | newest Gemini on the plan | `--model` on every `agy` call; web access on by default |
 
 **Verified against codex-cli 0.146, do not re-derive:** `--search` is
@@ -73,8 +73,11 @@ only, and exec exits 2 with "unexpected argument". The working form is
 because the tool is server-side rather than shell egress. `agy` needs no
 flag at all; its `read_url_content` works under `--sandbox`.
 
-If the session is not on the strongest Claude tier, say so and ask the user
-to switch before step 0.
+If the session is not on the newest top-tier Claude the plan offers (the
+dated example — Fable 5.1 as of 2026-09 — is a floor that goes stale, not
+the rule: a newer top tier also passes), say so and ask the user to switch
+before step 0; stop only for fast/cheap tiers (Haiku/Sonnet-class) or a
+top tier older than the example.
 
 ## Cross-platform
 
@@ -123,9 +126,13 @@ Claude ever touched.
 Then state the access asymmetry plainly, because it decides what can be
 verified at all: Codex can be given MCP servers in `~/.codex/config.toml`
 and will load them in `codex exec`, so it may be able to re-run first-party
-queries. Check `agy mcp list` for the Gemini leg — if it has none,
-first-party rows can never be verified by it, and any row neither leg could
-reach is a row only Claude ever touched. The output says so.
+queries — but the audit legs in step 3 run config-isolated (`--ephemeral
+--ignore-user-config`) precisely to keep that fleet away from web-fetched
+untrusted pages, so first-party rows are Claude-only by construction unless
+you deliberately run a separate non-isolated pass for them. Check `agy mcp
+list` for the Gemini leg — if it has none, first-party rows can never be
+verified by it, and any row neither leg could reach is a row only Claude
+ever touched. The output says so.
 
 ## Step 2 — the claim ledger
 
@@ -165,7 +172,7 @@ instructions, and Codex will summarise or answer it instead of auditing it.
 The file you pipe must contain both.
 
 ```bash
-codex exec -C /path/to/empty-dir -s read-only -c tools.web_search=true   -c model_reasoning_effort="high" - < audit-codex.md
+codex exec --ephemeral --ignore-user-config -C /path/to/empty-dir -s read-only -c tools.web_search=true -c model_reasoning_effort="high" - < audit-codex.md
 ```
 
 ```bash
@@ -175,7 +182,9 @@ agy --sandbox --model <newest-gemini-on-plan> --print-timeout 12m -p "<brief, na
 `-C` points Codex at a directory holding the audit file and nothing else —
 see the confidentiality note in Notes. The brief in each file:
 
-> Attached is a claim ledger. For EVERY row: re-fetch the named source
+> Attached is a claim ledger. Begin your reply with one line: READ: <row
+> R1's Claim column, verbatim> — or FILE-NOT-READ if you could not open the
+> file. For EVERY row: re-fetch the named source
 > yourself and return **CONFIRMED / CORRECTED / UNVERIFIABLE**, with (a) the
 > literal string you found, (b) the URL you actually fetched, (c) the date.
 >
@@ -273,8 +282,10 @@ prominently: a ledger goes stale, and competitor pricing goes stale fast.
     `UNVERIFIED` or as Claude-only coverage. The auditors get the
     public-source rows, which is all they can check anyway.
   - **Run each auditor with `-C` pointed at a directory holding only its
-    audit file**, so local read has nothing to find. Consider a profile with
-    MCP servers disabled for the audit legs.
+    audit file**, so local read has nothing to find. The `--ephemeral
+    --ignore-user-config` flags in step 3 are the MCP-disabled profile this
+    used to tell you to go build — they skip `config.toml` (auth still
+    works) and keep the audit out of persisted session files.
 - Nothing in this skill writes to the tree.
 - Never pick a Claude or GPT-OSS model from `agy models` — one lab on two of
   three seats voids the independence the skill is built on.

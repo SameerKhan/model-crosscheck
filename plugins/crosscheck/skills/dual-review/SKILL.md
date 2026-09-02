@@ -27,8 +27,8 @@ disagreement tells the user where to look manually.
 2. **Start the Codex review in the background** (it takes several minutes):
 
    ```bash
-   codex exec -s read-only review --base origin/<trunk> -c model_reasoning_effort="high"
-   # or: codex exec -s read-only review --uncommitted -c model_reasoning_effort="high"
+   codex exec --ephemeral --ignore-user-config -s read-only review --base origin/<trunk> -c model_reasoning_effort="high"
+   # or: codex exec --ephemeral --ignore-user-config -s read-only review --uncommitted -c model_reasoning_effort="high"
    ```
 
    Run via Bash with `run_in_background: true`. Always pass
@@ -79,6 +79,14 @@ disagreement tells the user where to look manually.
   small/mini model still yields a shallow reviewer — and the merge logic
   would then treat "Codex found nothing" as an independent signal. If a mini
   model is pinned, override it for the review via `-c model=...`.
+- **`-s read-only` sandboxes the shell, not MCP** — which is why the step 2
+  command also passes `--ephemeral --ignore-user-config`. Without them, a
+  `~/.codex/config.toml` that wires MCP servers (databases, billing, mail)
+  boots that fleet while Codex parses an untrusted diff. Auth still works
+  (`--ignore-user-config` skips only `config.toml`), and `--ephemeral` also
+  keeps the diff out of persisted session files. With the config skipped its
+  pins no longer apply, so keep effort explicit and add `-c model=...` if
+  the CLI's default model isn't the one you want reviewing.
 - macOS + Codex desktop app: if `codex` is a symlink into the app bundle,
   the sibling helper `codex-code-mode-host` must be symlinked into the same
   directory too — codex resolves that helper next to the invoked binary, and

@@ -17,8 +17,8 @@ and translate; don't paste the bash form and hope:
 
 | bash/zsh | PowerShell |
 |---|---|
-| `codex exec ... - < /tmp/critique-prompt.md` | `Get-Content $env:TEMP\critique-prompt.md \| codex exec ... -` — PowerShell **reserves `<`** and errors on it |
-| `/tmp/plan.md` | `$env:TEMP\plan.md` |
+| `codex exec ... - < "$PROMPT"` | `Get-Content $prompt \| codex exec ... -` — PowerShell **reserves `<`** and errors on it |
+| `PROMPT=$(mktemp)` | `$prompt = (New-TemporaryFile).FullName` |
 | `~/.codex/config.toml` | `$env:USERPROFILE\.codex\config.toml` (or `$env:CODEX_HOME\config.toml` — `CODEX_HOME` is the directory, not the file) |
 
 `codex` is on PATH on Windows when installed normally — the
@@ -30,17 +30,20 @@ convergence rules, and the round cap are identical on every platform.
 1. **Scope the feature.** Explore the codebase as usual (respect the repo's
    CLAUDE.md conventions and known landmines). Draft an implementation plan:
    goal, files to touch, approach, data-shape changes, risks, test plan.
-   Write it to a scratchpad file OUTSIDE the repo, in the OS temp dir
-   (`/tmp/plan.md`; `$env:TEMP\plan.md` on Windows) — scratch files inside
-   the repo would pollute the later `--uncommitted` review scope or get
-   committed by accident.
+   Write it to a scratch file OUTSIDE the repo (plain `mktemp`;
+   `(New-TemporaryFile).FullName` on Windows) — scratch files inside the
+   repo would pollute the later `--uncommitted` review scope or get
+   committed by accident, and a fixed name like `/tmp/plan.md` collides
+   with a concurrent run and is world-predictable.
 
 2. **Codex critique gate.** Build a critique prompt file containing the plan
    plus instructions, then run Codex read-only in the background (takes
    minutes):
 
    ```bash
-   codex exec -s read-only -c model_reasoning_effort="high" - < /tmp/critique-prompt.md
+   PROMPT=$(mktemp)
+   # write the critique prompt (template below, plan inlined) into "$PROMPT", then:
+   codex exec --ephemeral --ignore-user-config -s read-only -c model_reasoning_effort="high" - < "$PROMPT"
    ```
 
    Pass `-s read-only` explicitly — the user's config may default to a
@@ -92,12 +95,14 @@ For a large feature with a cleanly separable piece, Codex can implement that
 piece itself in an ISOLATED git worktree:
 
 ```bash
-git worktree add /tmp/codex-<feature> HEAD
-cd /tmp/codex-<feature> && codex exec --sandbox workspace-write "<subtask spec>"
+WT=$(mktemp -d)
+git worktree add "$WT" HEAD
+cd "$WT" && codex exec --sandbox workspace-write "<subtask spec>"
 ```
 
-(On Windows use a temp path such as `$env:TEMP\codex-<feature>`; the worktree
-must live outside the primary working tree, not the specific `/tmp` path.)
+(On Windows: `$WT = (New-Item -ItemType Directory -Path (Join-Path $env:TEMP ([guid]::NewGuid()))).FullName`
+— the table's `New-TemporaryFile` creates a *file*, not a directory. The
+requirement is that the worktree lives outside the primary working tree.)
 
 Then Claude reviews Codex's working-tree diff in the worktree, applies and
 commits the accepted changes onto the main branch, and /dual-review still

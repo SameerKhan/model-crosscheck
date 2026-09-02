@@ -15,25 +15,33 @@ point BOTH critics raise independently is near-certain to be real.
 
 | Leg | Model | Where it's set |
 |---|---|---|
-| **Claude** (plan draft, adjudication, implementation) | the strongest Claude tier available (Opus) | the session model — see below |
-| Codex critic | whatever `~/.codex/config.toml` pins | `-c` override, effort forced to `high` |
+| **Claude** (plan draft, adjudication, implementation) | the newest top-tier Claude available (2026-09: Fable 5.1, then Fable 5, then Opus 5) | the session model — see below |
+| Codex critic | the CLI's default under config isolation (`-c model=...` to override) | `--ephemeral --ignore-user-config -s read-only`, effort forced to `high` |
 | Gemini critic | newest Gemini on the plan | `--model` on every `agy` call |
 
 Both critics get their model pinned explicitly, so the Claude leg shouldn't be
 the one seat left to chance. It is also the load-bearing one: Claude drafts
 the plan, rules on both critiques, and writes the code — the critics only ever
 react to what Claude produced, so a weak draft caps the quality of the whole
-run. Run it on the strongest Claude tier available — **not** a fast/cheap
-tier, even if that is the session default.
+run. Run it on the newest, most capable Claude the plan offers at run time
+— **not** a fast/cheap tier, even if that is the session default, and not a
+name pinned in this file: the dated example in the table is a **floor, not
+an exact match** — a tier hard-coded last quarter quietly becomes the
+second-best seat when the next model ships.
 
 Claude cannot switch its own main-loop model, so **check before starting**.
 The active model is stated in the session's environment context (the user can
 also confirm with `/status`).
 
-- Already on the strongest tier → proceed.
-- Anything else → **stop before step 1**, say which model the Claude leg
-  would run on, and ask the user to switch (`/model opus`) and re-invoke.
-  Don't draft on a downgraded model and then spend two critic CLIs on it.
+- On a top-tier Claude (Fable/Opus-class) at least as new as the table's
+  dated example → proceed. Newer than the example also passes.
+- On a fast/cheap tier (Haiku/Sonnet-class), or a top tier older than the
+  example → **stop before step 1**, say which model the Claude leg would
+  run on, and ask the user to switch (`/model` lists what the plan offers —
+  pick the newest top-tier Claude) and re-invoke. Don't draft on a
+  downgraded model and then spend two critic CLIs on it. If you genuinely
+  can't classify the session model, name it and ask rather than deciding
+  silently.
 - Pin any subagent this skill spawns to the same tier explicitly — passing an
   `agentType` inherits that agent definition's own model instead.
 
@@ -60,8 +68,9 @@ identical on every platform.
    CLAUDE.md conventions and known landmines). Draft an implementation plan:
    goal, files to touch, approach, data-shape changes, risks, test plan.
    Write it to a scratch file OUTSIDE the repo (plain `mktemp`, or
-   `$env:TEMP\plan.md` on Windows) — scratch files inside the repo would
-   pollute a later `--uncommitted` review scope or get committed by accident.
+   `(New-TemporaryFile).FullName` on Windows) — scratch files inside the
+   repo would pollute a later `--uncommitted` review scope or get committed
+   by accident, and a fixed name collides with a concurrent run.
    Both critics read this file, so use an absolute path.
 
 2. **Critique gate — run both critics in parallel, in the background**
@@ -69,7 +78,7 @@ identical on every platform.
    `run_in_background: true`):
 
    ```bash
-   codex exec -s read-only -c model_reasoning_effort="high" - < /path/to/critique-prompt.md
+   codex exec --ephemeral --ignore-user-config -s read-only -c model_reasoning_effort="high" - < /path/to/critique-prompt.md
    ```
 
    ```bash
@@ -87,8 +96,13 @@ identical on every platform.
    surface different defect classes, and a plan can pass A completely while
    failing B in ways that damage production.
 
-   For Gemini, prepend "Read the plan at <ABS_PATH> with read_file first."
-   to each lens.
+   For Gemini, prepend "Read the plan at <ABS_PATH> with read_file first.
+   Begin your reply with one line: READ: <the plan file's first line,
+   verbatim> — or FILE-NOT-READ if you could not open it." to each lens.
+   A SOUND or AUTHORIZE without that READ line is a failed run, not a
+   sign-off — the hollow-verdict failure is reproduced, not hypothetical
+   (see /tri-review's Notes): check whether the critique cites the plan's
+   actual content; if not, discard it, re-check the path, and re-run once.
 
    **Lens A — correctness:**
    > You are reviewing an implementation plan for this repository (read the
@@ -228,10 +242,11 @@ faked a liveness check — only surfaced when the code was actually run.
 
 - Plumbing is shared with the sibling skills — see **/dual-review's Notes**
   for the Codex leg (install/auth, `codex-code-mode-host` symlink trap,
-  model pinned in `~/.codex/config.toml`, always `-c
-  model_reasoning_effort="high"`) and **/tri-review's Notes** for the
-  Gemini leg (install/auth, no-stdin trap, read-only allowlist in
-  `~/.gemini/antigravity-cli/settings.json`, pick the newest **Gemini**
+  config isolation via `--ephemeral --ignore-user-config` and why `-s
+  read-only` doesn't cover MCP, always `-c model_reasoning_effort="high"`)
+  and **/tri-review's Notes** for the Gemini leg (install/auth, no-stdin
+  trap, the read-receipt contract for hollow verdicts, read-only allowlist
+  in `~/.gemini/antigravity-cli/settings.json`, pick the newest **Gemini**
   model — `agy models` also lists Claude/GPT-OSS models, and picking one
   puts the same lab on two seats).
 - Gemini gets a longer `--print-timeout` here (15m vs review's 8m) —
