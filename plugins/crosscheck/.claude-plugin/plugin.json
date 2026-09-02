@@ -2,7 +2,7 @@
   "name": "crosscheck",
   "displayName": "Model Crosscheck",
   "description": "Multi-model workflows for Claude Code: /dual-plan and /tri-plan (rival models critique a plan until convergence), /dual-review and /tri-review (independent reviewers on the same diff, merged and adversarially verified), /tri-decide (blind proposals for hard-to-reverse architecture decisions), /tri-strategy (three assigned lenses over one evidence pack for business decisions), and /tri-research (one researcher, two auditors, and a claim ledger they verify row by row).",
-  "version": "2.5.0",
+  "version": "2.6.0",
   "author": {
     "name": "Sameer Ahmed Khan"
   }

@@ -9,6 +9,25 @@ Two independent reviews of the same diff, merged into one report. The value is
 in the merge: agreement between two different models is a strong signal;
 disagreement tells the user where to look manually.
 
+## Model per leg — pin both
+
+| Leg | Model | Where it's set |
+|---|---|---|
+| **Claude** (verification + merge) | the newest top-tier Claude available (2026-09: Fable 5.1, then Fable 5, then Opus 5) | the session model — see below |
+| Codex | the CLI's default under config isolation — read the `model:` line Codex prints at startup; `-c model=...` to override | `--ephemeral --ignore-user-config -s read-only`, effort forced to `high` |
+
+The Claude leg holds the repo context, verifies Codex's findings, and writes
+the merge, so it must not be the cheap seat. Check the active model (stated
+in the session's environment context; `/status` confirms it) before step 1:
+on a top-tier Claude (Fable/Opus-class) at least as new as the dated example
+→ proceed — newer also passes, the example is a floor, not a pin, and a
+`[1m]` context-window suffix is the same model. On a fast/cheap tier
+(Haiku/Sonnet-class) or an older top tier → stop, say which model the
+Claude leg would run on, and ask the user to switch via `/model` and
+re-invoke. Pin any subagent explicitly — `subagent_type` (Agent tool) or
+`agentType` (Workflow scripts) without `model` inherits that agent
+definition's own model.
+
 ## Steps
 
 1. **Determine diff scope.**
@@ -75,10 +94,14 @@ disagreement tells the user where to look manually.
 - Requires the OpenAI Codex CLI (`codex`) installed and authenticated
   (`codex login`). Don't change the user's global `~/.codex/config.toml`;
   use `-c` overrides only.
-- Check which model `~/.codex/config.toml` pins. Effort `high` on a
-  small/mini model still yields a shallow reviewer — and the merge logic
-  would then treat "Codex found nothing" as an independent signal. If a mini
-  model is pinned, override it for the review via `-c model=...`.
+- Under config isolation your `~/.codex/config.toml` model pin does **not**
+  apply — the CLI's built-in default runs unless you pass `-c model=...`.
+  Codex prints `model: <name>` in its startup header on every run: read it
+  off the first lines of the leg's output, and if it is a mini/small tier,
+  re-run with `-c model=<your flagship>` (and pass that explicitly from then
+  on — the default tracks the CLI release, not your choice). Effort `high`
+  on a small model still yields a shallow reviewer — and the merge logic
+  would then treat "Codex found nothing" as an independent signal.
 - **`-s read-only` sandboxes the shell, not MCP** — which is why the step 2
   command also passes `--ephemeral --ignore-user-config`. Without them, a
   `~/.codex/config.toml` that wires MCP servers (databases, billing, mail)

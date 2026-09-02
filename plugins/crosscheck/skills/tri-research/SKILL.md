@@ -62,9 +62,9 @@ failure point across these skills, and this is the skill that reviews it.
 
 | Leg | Model | Where it's set |
 |---|---|---|
-| **Claude** (ledger, resolution, output) | the newest top-tier Claude available (2026-09: Fable 5.1) | the session model — check before step 0 |
-| Codex | the CLI's default under config isolation (`-c model=...` to override) | `--ephemeral --ignore-user-config -s read-only`, effort forced `high`, **web search enabled** |
-| Gemini | newest Gemini on the plan | `--model` on every `agy` call; web access on by default |
+| **Claude** (ledger, resolution, output) | the newest top-tier Claude available (2026-09: Fable 5.1, then Fable 5, then Opus 5) | the session model — check before step 0 |
+| Codex | the CLI's default under config isolation — read the `model:` line Codex prints at startup; `-c model=...` to override | `--ephemeral --ignore-user-config -s read-only`, effort forced `high`, **web search enabled** |
+| Gemini | the newest Gemini on the plan (2026-09: `gemini-3.8-flash-high` — a floor, not a pin) | `--model` on every `agy` call; web access on by default |
 
 **Verified against codex-cli 0.146, do not re-derive:** `--search` is
 **not** a valid flag on `codex exec` — it exists on the interactive TUI
@@ -75,9 +75,12 @@ flag at all; its `read_url_content` works under `--sandbox`.
 
 If the session is not on the newest top-tier Claude the plan offers (the
 dated example — Fable 5.1 as of 2026-09 — is a floor that goes stale, not
-the rule: a newer top tier also passes), say so and ask the user to switch
+the rule: a newer top tier also passes, and a `[1m]` suffix is the same
+model), say so and ask the user to switch
 before step 0; stop only for fast/cheap tiers (Haiku/Sonnet-class) or a
-top tier older than the example.
+top tier older than the example, and if you genuinely can't classify the
+session model, name it and ask. Pin any subagent this skill spawns to the
+same tier explicitly (`model`, not just `subagent_type`).
 
 ## Cross-platform
 
@@ -172,15 +175,20 @@ instructions, and Codex will summarise or answer it instead of auditing it.
 The file you pipe must contain both.
 
 ```bash
-codex exec --ephemeral --ignore-user-config -C /path/to/empty-dir -s read-only -c tools.web_search=true -c model_reasoning_effort="high" - < audit-codex.md
+codex exec --ephemeral --ignore-user-config --skip-git-repo-check -C /path/to/empty-dir -s read-only -c tools.web_search=true -c model_reasoning_effort="high" - < audit-codex.md
 ```
 
 ```bash
 agy --sandbox --model <newest-gemini-on-plan> --print-timeout 12m -p "<brief, naming audit-gemini.md's absolute path to read_file>"
 ```
 
-`-C` points Codex at a directory holding the audit file and nothing else —
-see the confidentiality note in Notes. The brief in each file:
+`-C` points Codex at an empty scratch directory (its audit arrives on
+stdin), and `--skip-git-repo-check` is required with it: a non-git
+directory otherwise trips Codex's trusted-directory check and the leg dies
+before any model call — with piped stdin it hangs rather than failing
+(verified on codex-cli 0.146). Gemini has no `-C`: write `audit-gemini.md`
+alone into a scratch directory of its own and name that absolute path.
+Neither is a confidentiality boundary — see Notes. The brief in each file:
 
 > Attached is a claim ledger. Begin your reply with one line: READ: <row
 > R1's Claim column, verbatim> — or FILE-NOT-READ if you could not open the
@@ -281,11 +289,15 @@ prominently: a ledger goes stale, and competitor pricing goes stale fast.
     with customer data are verified by Claude alone and reported as
     `UNVERIFIED` or as Claude-only coverage. The auditors get the
     public-source rows, which is all they can check anyway.
-  - **Run each auditor with `-C` pointed at a directory holding only its
-    audit file**, so local read has nothing to find. The `--ephemeral
-    --ignore-user-config` flags in step 3 are the MCP-disabled profile this
-    used to tell you to go build — they skip `config.toml` (auth still
-    works) and keep the audit out of persisted session files.
+  - **Keep each auditor's working set empty**: Codex via `-C` into an empty
+    scratch directory (its audit arrives on stdin), Gemini by placing
+    `audit-gemini.md` alone in a scratch directory it reads by absolute
+    path. This shrinks what a wandering read finds by default; it is not a
+    boundary — `-s read-only` blocks writes, not reads of absolute paths.
+    The `--ephemeral --ignore-user-config` flags in step 3 are the
+    MCP-disabled profile this used to tell you to go build — they skip
+    `config.toml` (auth still works) and keep the audit out of persisted
+    session files.
 - Nothing in this skill writes to the tree.
 - Never pick a Claude or GPT-OSS model from `agy models` — one lab on two of
   three seats voids the independence the skill is built on.

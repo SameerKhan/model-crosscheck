@@ -33,21 +33,24 @@ that does not exist.
 
 | Leg | Model | Where it's set |
 |---|---|---|
-| **Claude** (proposal, crux resolution, adjudication, the record) | the newest top-tier Claude available (2026-09: Fable 5.1) | the session model — see below |
-| Codex proposer | the CLI's default under config isolation (`-c model=...` to override) | `--ephemeral --ignore-user-config -s read-only`, effort forced to `high` |
-| Gemini proposer | newest Gemini on the plan | `--model` on every `agy` call |
+| **Claude** (proposal, crux resolution, adjudication, the record) | the newest top-tier Claude available (2026-09: Fable 5.1, then Fable 5, then Opus 5) | the session model — see below |
+| Codex proposer | the CLI's default under config isolation — read the `model:` line Codex prints at startup; `-c model=...` to override | `--ephemeral --ignore-user-config -s read-only`, effort forced to `high` |
+| Gemini proposer | the newest Gemini on the plan (2026-09: `gemini-3.8-flash-high` — a floor, not a pin) | `--model` on every `agy` call |
 
 Claude drafts an option, resolves the cruxes, judges the comparison, and
 writes the record — more load-bearing here than in any sibling skill. Check
 the active model (stated in the session's environment context; the user can
-confirm with `/status`) **before step 1**. If it is not the newest top-tier
+confirm with `/status`) **before step 0**. If it is not the newest top-tier
 Claude the plan offers (as of 2026-09: Fable 5.1, then Fable 5, then Opus 5
 — a moving target, not a name to pin), say which model the Claude leg would run
 on and ask the user to switch (`/model` lists the options) rather than
 spending two CLIs on a weak proposal. The dated example is a **floor, not an
-exact match** — a top tier newer than it also passes; stop only for
-fast/cheap tiers (Haiku/Sonnet-class) or a top tier older than the example.
-Pin any subagent this skill spawns to the same tier explicitly.
+exact match** — a top tier newer than it also passes, and a `[1m]`
+context-window suffix is the same model; stop only for fast/cheap tiers
+(Haiku/Sonnet-class) or a top tier older than the example; if you genuinely
+can't classify the session model, name it and ask. Pin any subagent this
+skill spawns to the same tier explicitly (`model`, not just
+`subagent_type`).
 
 ## Cross-platform — the snippets below are bash/zsh
 

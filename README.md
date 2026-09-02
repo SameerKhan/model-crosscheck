@@ -6,8 +6,9 @@
 > See [Renamed from dual-ai-skills](#renamed-from-dual-ai-skills).
 
 [Claude Code](https://claude.com/claude-code) skills that put **Claude,
-OpenAI's Codex CLI — and optionally Google's Gemini — in an adversarial loop**
-on the same work, instead of trusting any one model alone.
+OpenAI's Codex CLI — and, for the five `tri-*` skills, Google's Gemini — in
+an adversarial loop** on the same work, instead of trusting any one model
+alone.
 
 ## Which one do I want?
 
@@ -243,8 +244,22 @@ wall-clock, and your own attention on the merged report. Skip them when:
    authenticated with a Google plan login (run `agy` once interactively to
    sign in).
 
-The first two are needed; the whole point is independent vendors. The third
-adds a tie-breaker.
+The first two are needed for the `dual-*` skills; the whole point is
+independent vendors. The third is required by every `tri-*` skill — five of
+the seven — where it is the tie-breaking third vendor.
+
+**Verify the setup in ten seconds** before the first run — the skills stop
+rather than run short-handed, so it is cheaper to find out now:
+
+```bash
+codex --version && { codex exec --help | grep -q -- --ignore-user-config \
+  && echo "codex: config isolation supported" \
+  || echo "codex: too old for config isolation, upgrade it"; }
+agy models | grep -i gemini | head -1   # first Gemini listed; agy prints newest-first as of 2026-09
+```
+
+Every skill also checks the session's Claude model up front and stops if it
+is a fast/cheap tier — see the *Pin all three models* tip below.
 
 **Windows, macOS, and Linux are all supported.** The skills' command snippets
 are written in bash/zsh, and each one carries a cross-platform table for the
@@ -295,8 +310,8 @@ Copy-Item -Recurse -Force model-crosscheck\plugins\crosscheck\skills\* "$env:USE
 
 Either way, you can also just say **"dual plan this feature"**,
 **"tri plan this feature"**, **"dual review this branch"**,
-**"tri review this branch"**, **"tri decide this"**, or **"tri strategy
-this"** in Claude Code — no slash command needed.
+**"tri review this branch"**, **"tri decide this"**, **"tri strategy
+this"**, or **"tri research this"** in Claude Code — no slash command needed.
 
 ## Not on Claude Code? (Cursor, Antigravity, etc.)
 
@@ -323,13 +338,16 @@ Two options:
   writes the merge — so run it on the newest top-tier Claude you have
   (as of 2026-09: Fable 5.1, then Fable 5, then Opus 5). Treat "strongest" as
   a moving target, not a name to pin: a tier hard-coded last quarter quietly
-  becomes the second-best seat when the next model ships. The `/tri-*`
-  skills check the session model up front and stop rather than run a
-  "triple review" with a downgraded Claude seat. Caveat worth knowing:
+  becomes the second-best seat when the next model ships. The same holds
+  for the Gemini seat: the 3.7 example that stood in these files went stale
+  within a month, so run `agy models` and take the newest Gemini it lists.
+  Every skill checks the session model up front and stops rather than run
+  a "triple review" with a downgraded Claude seat. Caveat worth knowing:
   `/code-review` does not necessarily inherit your session model — the
-  official `code-review` plugin command fans out to Haiku and Sonnet workers
-  — so the gate covers the main-loop verify/merge, and you should pin an
-  explicit model if you need the finding-generation on the top tier too.
+  official `code-review` plugin command spawns its own finder agents on a
+  tier the plugin chooses — so the gate covers the main-loop verify/merge,
+  and you should pin an explicit model if you need the finding-generation
+  on the top tier too.
 - **Codex needs web search switched on explicitly, and `--search` is not the
   way to do it in `exec`.** The flag exists on the interactive TUI only;
   `codex exec --search` exits 2 with "unexpected argument". Use
@@ -337,6 +355,23 @@ Two options:
   the tool is server-side, not shell egress. Gemini via `agy` needs no flag —
   it fetches with `read_url_content` under `--sandbox`. `/tri-research`
   depends on both.
+- **Run the Codex leg config-isolated.** `-s read-only` sandboxes the
+  shell, not MCP: if your `~/.codex/config.toml` wires MCP servers to a
+  database, billing, or mail, every review boots that fleet while Codex
+  parses an untrusted diff. The skills' commands therefore pass
+  `--ephemeral --ignore-user-config` — auth still works, the config's model
+  pin does not, so add `-c model=...` if you want a specific model. Verified
+  on codex-cli 0.146.
+- **Demand a read receipt from every external leg.** A model handed a file
+  path can return a fluent verdict without ever opening the file — a hollow
+  "CLEAN" on a review is bad, a hollow "SOUND" on a plan converges the loop.
+  Every prompt that hands a leg a file path — the Gemini legs of the
+  `tri-*` skills — asks it to open with a line it can only produce by
+  reading the file (the diff's file count and first header, or the plan's
+  first line); `/tri-review` also ships a JSON schema so
+  `agy --output-format json --json-schema` enforces it mechanically. Codex
+  legs never get a path to lose: the `review` subcommand reads the repo
+  itself, and plans and briefs are inlined into its stdin prompt.
 - **Never let both models write to the same working tree.** One drives, the
   other critiques. The optional co-coder mode in `/dual-plan` uses an
   isolated `git worktree` for exactly this reason — and critique/review runs
@@ -435,6 +470,12 @@ SameerKhan/model-crosscheck
 
 The old source (`SameerKhan/dual-ai-skills`) also still resolves via redirect,
 so it can be kept alongside the new one during a transition.
+
+## Versions
+
+See [CHANGELOG.md](CHANGELOG.md). The plugin version lives in
+`plugins/crosscheck/.claude-plugin/plugin.json`; `/plugin marketplace update
+model-crosscheck` pulls the newest.
 
 ## License
 

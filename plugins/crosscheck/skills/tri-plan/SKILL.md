@@ -16,11 +16,12 @@ point BOTH critics raise independently is near-certain to be real.
 | Leg | Model | Where it's set |
 |---|---|---|
 | **Claude** (plan draft, adjudication, implementation) | the newest top-tier Claude available (2026-09: Fable 5.1, then Fable 5, then Opus 5) | the session model — see below |
-| Codex critic | the CLI's default under config isolation (`-c model=...` to override) | `--ephemeral --ignore-user-config -s read-only`, effort forced to `high` |
-| Gemini critic | newest Gemini on the plan | `--model` on every `agy` call |
+| Codex critic | the CLI's default under config isolation — read the `model:` line Codex prints at startup; `-c model=...` to override | `--ephemeral --ignore-user-config -s read-only`, effort forced to `high` |
+| Gemini critic | the newest Gemini on the plan (2026-09: `gemini-3.8-flash-high` — a floor, not a pin) | `--model` on every `agy` call |
 
-Both critics get their model pinned explicitly, so the Claude leg shouldn't be
-the one seat left to chance. It is also the load-bearing one: Claude drafts
+Both critics get their model set on the command line — Gemini by `--model`,
+Codex by the CLI default under config isolation or an explicit `-c model=` —
+so the Claude leg shouldn't be the one seat left to chance. It is also the load-bearing one: Claude drafts
 the plan, rules on both critiques, and writes the code — the critics only ever
 react to what Claude produced, so a weak draft caps the quality of the whole
 run. Run it on the newest, most capable Claude the plan offers at run time
@@ -34,7 +35,8 @@ The active model is stated in the session's environment context (the user can
 also confirm with `/status`).
 
 - On a top-tier Claude (Fable/Opus-class) at least as new as the table's
-  dated example → proceed. Newer than the example also passes.
+  dated example → proceed. Newer than the example also passes, and a `[1m]`
+  context-window suffix on the model id is the same model.
 - On a fast/cheap tier (Haiku/Sonnet-class), or a top tier older than the
   example → **stop before step 1**, say which model the Claude leg would
   run on, and ask the user to switch (`/model` lists what the plan offers —
@@ -42,8 +44,9 @@ also confirm with `/status`).
   downgraded model and then spend two critic CLIs on it. If you genuinely
   can't classify the session model, name it and ask rather than deciding
   silently.
-- Pin any subagent this skill spawns to the same tier explicitly — passing an
-  `agentType` inherits that agent definition's own model instead.
+- Pin any subagent this skill spawns to the same tier explicitly: passing
+  `subagent_type` (Agent tool) or `agentType` (Workflow scripts) without
+  `model` inherits that agent definition's own model.
 
 ## Cross-platform — the snippets below are bash/zsh
 
@@ -71,7 +74,9 @@ identical on every platform.
    `(New-TemporaryFile).FullName` on Windows) — scratch files inside the
    repo would pollute a later `--uncommitted` review scope or get committed
    by accident, and a fixed name collides with a concurrent run.
-   Both critics read this file, so use an absolute path.
+   Gemini reads this file by absolute path; Codex gets its contents inlined
+   into the critique prompt, because `codex exec -` reads stdin as its whole
+   prompt.
 
 2. **Critique gate — run both critics in parallel, in the background**
    (each takes minutes; two separate Bash calls with
@@ -119,7 +124,8 @@ identical on every platform.
    > regression. Be specific — cite file paths. Then give an overall
    > verdict: SOUND / NEEDS-CHANGES with a ranked list.
    >
-   > PLAN: <plan contents / path>
+   > PLAN: <for Codex, the plan contents inlined — `codex exec -` reads stdin
+   > as its whole prompt; for Gemini, the absolute path it must read_file>
 
    **Lens B — authorization / operations:**
    > You are deciding whether to AUTHORIZE this plan to run — assume it will
@@ -141,7 +147,8 @@ identical on every platform.
    > behind. Be specific — cite file paths. Verdict: AUTHORIZE /
    > DO-NOT-AUTHORIZE with a ranked list of blockers.
    >
-   > PLAN: <plan contents / path>
+   > PLAN: <for Codex, the plan contents inlined — `codex exec -` reads stdin
+   > as its whole prompt; for Gemini, the absolute path it must read_file>
 
    **The executable-claim check (in Lens A) is the highest-value single
    rule here.** A plan that says "inject the credentials at call time"

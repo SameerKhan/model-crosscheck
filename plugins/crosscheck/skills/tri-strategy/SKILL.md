@@ -34,13 +34,18 @@ Two consequences, both load-bearing:
    Be honest with the user about that — do not present model consensus as
    though it were evidence.
 
-**Check that default rather than assuming it.** An MCP server changes it:
-`codex exec` loads whatever `~/.codex/config.toml` configures, and `agy mcp
-list` shows the Gemini side. Where a leg *can* re-derive a first-party
-number, that is a reason to run /tri-research over the pack — not a licence
-to let a leg wander off the pack mid-argument, and not before reading that
-skill's confidentiality note, because a web-enabled model holding production
-data is an exfiltration path.
+**That default is enforced, not assumed.** The step 2 commands run Codex
+config-isolated (`--ephemeral --ignore-user-config`), so a
+`~/.codex/config.toml` that wires billing or database MCP servers stays out
+of the run. The Gemini side has no such flag — `--sandbox` restricts the
+terminal, not MCP tools — so run `agy mcp list` first: if it shows an
+enabled server, `agy mcp disable <name>` for the run, or do not make the
+pack-only claim. Only then do the legs see the pack and only the pack. If a
+first-party number needs a second
+model's re-derivation, that is /tri-research's job under its confidentiality
+rules — not a licence to hand a lens leg production access mid-argument,
+because a web-enabled model holding production data is an exfiltration
+path.
 
 **Agreement is not signal** — even more so than in /tri-decide. Three
 models trained on overlapping corpora will converge on the same strategy-
@@ -52,18 +57,21 @@ numerically.
 
 | Leg | Model | Where it's set |
 |---|---|---|
-| **Claude** (evidence pack, one lens, crux resolution, the memo) | the newest top-tier Claude available (2026-09: Fable 5.1) | the session model — check before step 0 |
-| Codex | the CLI's default under config isolation (`-c model=...` to override) | `--ephemeral --ignore-user-config -s read-only`, effort forced to `high` |
-| Gemini | newest Gemini on the plan | `--model` on every `agy` call |
+| **Claude** (evidence pack, one lens, crux resolution, the memo) | the newest top-tier Claude available (2026-09: Fable 5.1, then Fable 5, then Opus 5) | the session model — check before step 0 |
+| Codex | the CLI's default under config isolation — read the `model:` line Codex prints at startup; `-c model=...` to override | `--ephemeral --ignore-user-config -s read-only`, effort forced to `high` |
+| Gemini | the newest Gemini on the plan (2026-09: `gemini-3.8-flash-high` — a floor, not a pin) | `--model` on every `agy` call |
 
 Claude assembles the evidence, argues a lens, resolves the cruxes, and
 writes the memo — more load-bearing than in any sibling skill, which is
 also why the conflict of interest below must be stated out loud. If the
 session is not on the newest top-tier Claude the plan offers (the dated
 example — Fable 5.1 as of 2026-09 — is a floor that goes stale, not the
-rule: a newer top tier also passes), say so and ask the user to switch
+rule: a newer top tier also passes, and a `[1m]` suffix is the same
+model), say so and ask the user to switch
 before step 0; stop only for fast/cheap tiers (Haiku/Sonnet-class) or a
-top tier older than the example.
+top tier older than the example, and if you genuinely can't classify the
+session model, name it and ask. Pin any subagent this skill spawns to the
+same tier explicitly (`model`, not just `subagent_type`).
 
 ## Cross-platform
 

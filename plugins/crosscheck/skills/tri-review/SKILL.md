@@ -14,11 +14,12 @@ finding is real; disagreement tells the user exactly where to look manually.
 | Leg | Model | Where it's set |
 |---|---|---|
 | **Claude** (verification + merge; see step 4 re `/code-review`) | the newest top-tier Claude available (2026-09: Fable 5.1, then Fable 5, then Opus 5) | the session model — see below |
-| Codex | the CLI's default under config isolation (`-c model=...` to override) | `--ephemeral --ignore-user-config -s read-only`, effort forced to `high` |
-| Gemini | newest Gemini on the plan | `--model` on every `agy` call |
+| Codex | the CLI's default under config isolation — read the `model:` line Codex prints at startup; `-c model=...` to override | `--ephemeral --ignore-user-config -s read-only`, effort forced to `high` |
+| Gemini | the newest Gemini on the plan (2026-09: `gemini-3.8-flash-high` — a floor, not a pin) | `--model` on every `agy` call |
 
-The other two legs get their model pinned explicitly, so the Claude leg
-shouldn't be the one seat left to chance. It is also the load-bearing one: it
+The other two legs get their model set on the command line — Gemini by
+`--model`, Codex by the CLI default under config isolation or an explicit
+`-c model=` — so the Claude leg shouldn't be the one seat left to chance. It is also the load-bearing one: it
 holds the repo context, verifies the other two models' findings before
 relaying them, and writes the merge. Run it on the newest, most capable
 Claude the plan offers at run time — **not** a fast/cheap tier, even if
@@ -32,7 +33,8 @@ The active model is stated in the session's environment context (the user can
 also confirm with `/status`).
 
 - On a top-tier Claude (Fable/Opus-class) at least as new as the table's
-  dated example → proceed. Newer than the example also passes.
+  dated example → proceed. Newer than the example also passes, and a `[1m]`
+  context-window suffix on the model id is the same model.
 - On a fast/cheap tier (Haiku/Sonnet-class), or a top tier older than the
   example → **stop before step 1**, say which model the Claude leg would
   run on, and ask the user to switch (`/model` lists what the plan offers —
@@ -40,8 +42,9 @@ also confirm with `/status`).
   "triple review" with a downgraded Claude seat. If you genuinely can't
   classify the session model, name it and ask rather than deciding
   silently.
-- Pin any subagent this skill spawns to the same tier explicitly — passing an
-  `agentType` inherits that agent definition's own model instead.
+- Pin any subagent this skill spawns to the same tier explicitly: passing
+  `subagent_type` (Agent tool) or `agentType` (Workflow scripts) without
+  `model` inherits that agent definition's own model.
 
 ## Cross-platform — the snippets below are bash/zsh
 
@@ -116,9 +119,9 @@ merge logic) is identical on every platform.
 
 4. **While they run, invoke `/code-review` at high effort** on the same scope.
    **Don't assume `/code-review` inherits the session model** — some
-   implementations fan out to their own fixed-tier workers (the official
-   `code-review` plugin command, for one, pins Haiku agents plus 5 parallel
-   Sonnet review agents). The model gate reliably covers the main-loop work:
+   implementations fan out to their own worker agents on a tier the plugin
+   chooses, not your session (the official `code-review` plugin command, for
+   one, spawns its own finder agents). The model gate reliably covers the main-loop work:
    the verification pass in step 5, the rebuttal round, and the merge. If the
    finding-generation itself must run on the top tier, spawn the review
    agents directly with an explicit `model` rather than relying on
@@ -174,9 +177,13 @@ merge logic) is identical on every platform.
      refutation inline; reference the patch file again).
    Require the reply to open by quoting the disputed finding's file:line
    verbatim — a bare CONCEDE with no quote is a failed run, not a
-   concession; re-send once. Concede → drop silently. Defend → re-examine once; if you still disagree,
-   report it as **[disputed]** with both positions and your recommendation —
-   the user rules. One rebuttal round only (reviews are expensive; the diff,
+   concession; re-send once. Tell **Gemini** it may not run commands: a
+   headless `agy` rebuttal that tries to reproduce the failure dies on the
+   permission auto-deny and returns nothing (seen 2026-09-02). Codex keeps
+   its read-only shell — re-reading the code is how it cites.
+   Concede → drop silently. Defend → re-examine once; if you still
+   disagree, report it as **[disputed]** with both positions and your
+   recommendation — the user rules. One rebuttal round only (reviews are expensive; the diff,
    unlike a plan, doesn't change mid-review). Skip when nothing was rejected.
 
 7. **Report one consolidated list**, most severe first, tagging each finding
@@ -203,8 +210,29 @@ merge logic) is identical on every platform.
   actually present in the patch (that proves the file was read even when the
   preamble was skipped, and the review stands); if nothing diff-specific
   either, discard the verdict, re-check the path, and re-run once.
-  (`codex exec --output-schema` / `agy --json-schema` can enforce the same
-  contract as structured output if you want it machine-checked.)
+- **Machine-checked variant** (verified 2026-09-03 on Gemini 3.8 Flash) —
+  for the Gemini leg, the one handed a file path. Instead of the INSPECTED
+  preamble, let the CLI enforce the receipt. A schema ships next to this
+  file as `receipt.schema.json` (fields `inspected_files`, `first_header`,
+  `verdict` ∈ CLEAN / FINDINGS / FILE-NOT-READ, `findings[]` of
+  `file:line — issue — why` strings). Pick one path per run, not both:
+
+  ```bash
+  agy --sandbox --model <model> --print-timeout 8m --output-format json \
+    --json-schema /path/to/receipt.schema.json -p "<the step 3 prompt, with its last two sentences replaced by: Fill the schema — inspected_files = number of files in the diff, first_header = the first diff --git line verbatim, verdict = CLEAN or FINDINGS (FILE-NOT-READ if you could not open the file), findings = one string per defect as file:line — issue — why it breaks>"
+  ```
+
+  The reply is a JSON envelope: read its `structured_output` object (the one
+  validated against the schema — the free-text `response` field may carry
+  extra keys the model invented) and compare `inspected_files` and
+  `first_header` to the patch yourself; a mismatch is a hollow run.
+  `--json-schema` is rejected unless `--output-format` is `json` or
+  `stream-json`. No receipt applies to the step 3 Codex leg: the built-in
+  `review` subcommand takes neither a prompt nor a schema, and it reads the
+  repo itself, so there is no path to lose. `codex exec --output-schema
+  <file> "<prompt>"` exists for the custom-prompt form (tri-research's
+  auditor, for one) and prints the constrained JSON directly — there is no
+  `structured_output` envelope to look for.
 - **Constrain exploration explicitly** ("do NOT search or explore beyond
   them, do NOT run commands") — without it the agent wanders the repo and
   exceeds `--print-timeout` with no output.
@@ -217,13 +245,20 @@ merge logic) is identical on every platform.
   permission", add a read-only rule there — never use
   `--dangerously-skip-permissions`.
 - Pass `--model` explicitly and pick the newest **Gemini** model your plan
-  offers (e.g. `gemini-3.7-flash-high` as of 2026-08); a newer flash tier at
-  high effort tends to out-review an older pro tier. Note that `agy models`
+  offers (e.g. `gemini-3.8-flash-high` as of 2026-09 — the 3.7 example that
+  stood here went stale within a month, which is why the table calls it a
+  floor); a newer flash tier at high effort tends to out-review an older
+  pro tier. If the newest Gemini listed is *older* than the dated example,
+  the seat is below floor: still run it — Gemini is the tie-breaker, not the
+  load-bearing seat — but label the report `gemini seat: <model>, below the
+  documented floor` so the user can discount it. Do not stop for it the way
+  the Claude gate stops. Note that `agy models`
   may also list Claude and GPT-OSS models — don't pick those, or two of your
   three "independent" reviewers share a lab and the agreement signal is void.
   Run `agy models` and copy a name from the list rather than guessing one:
   new generations appear silently, and the pro line lags the flash line
-  (there is no Gemini 3.5/3.6/3.7 Pro), so an invented name just fails.
+  (as of 2026-09 Flash is at 3.8 while the newest Pro is still 3.1), so an
+  invented name just fails.
 - Auth error / "Please sign in" → tell the user to run `agy` in their own
   terminal and complete the Google login; do not attempt to re-auth headless
   (it requires an interactive OAuth code paste).
@@ -234,10 +269,14 @@ merge logic) is identical on every platform.
   (`codex login` or the Codex desktop app). Don't change the user's global
   `~/.codex/config.toml`; use `-c` overrides only. Always override reasoning
   effort to `high` — a low default is too weak for review.
-- Check which model `~/.codex/config.toml` pins. Effort `high` on a
-  small/mini model still yields a shallow reviewer — and the merge logic
-  would then treat "Codex found nothing" as an independent signal. If a mini
-  model is pinned, override it for the review via `-c model=...`.
+- Under config isolation your `~/.codex/config.toml` model pin does **not**
+  apply — the CLI's built-in default runs unless you pass `-c model=...`.
+  Codex prints `model: <name>` in its startup header on every run: read it
+  off the first lines of the leg's output, and if it is a mini/small tier,
+  re-run with `-c model=<your flagship>` (and pass that explicitly from then
+  on — the default tracks the CLI release, not your choice). Effort `high`
+  on a small model still yields a shallow reviewer — and the merge logic
+  would then treat "Codex found nothing" as an independent signal.
 - **`-s read-only` sandboxes the shell, not MCP** — which is why the step 3
   command also passes `--ephemeral --ignore-user-config`. Without them, a
   `~/.codex/config.toml` that wires MCP servers (databases, billing, mail)

@@ -10,6 +10,25 @@ critiques at two gates — the plan and the final diff. The value is
 adversarial: Codex is prompted to find what the plan gets wrong, not to
 agree with it.
 
+## Model per leg — pin both
+
+| Leg | Model | Where it's set |
+|---|---|---|
+| **Claude** (plan draft, adjudication, implementation) | the newest top-tier Claude available (2026-09: Fable 5.1, then Fable 5, then Opus 5) | the session model — see below |
+| Codex critic | the CLI's default under config isolation — read the `model:` line Codex prints at startup; `-c model=...` to override | `--ephemeral --ignore-user-config -s read-only`, effort forced to `high` |
+
+Claude drafts the plan and rules on the critique — the critic only ever
+reacts to what Claude produced, so a weak draft caps the whole run. Check the
+active model (stated in the session's environment context; `/status`
+confirms it) before step 1: on a top-tier Claude (Fable/Opus-class) at least
+as new as the dated example → proceed — newer also passes, the example is a
+floor, not a pin, and a `[1m]` context-window suffix is the same model. On
+a fast/cheap tier (Haiku/Sonnet-class) or an older top tier → stop, say
+which model the Claude leg would run on, and ask the user to switch via
+`/model` and re-invoke. Pin any subagent explicitly — `subagent_type`
+(Agent tool) or `agentType` (Workflow scripts) without `model` inherits
+that agent definition's own model.
+
 ## Cross-platform — the snippets below are bash/zsh
 
 On Windows (PowerShell) the stdin redirect breaks outright. Detect the shell
@@ -60,7 +79,8 @@ convergence rules, and the round cap are identical on every platform.
    > Be specific — cite file paths. Then give an overall verdict:
    > SOUND / NEEDS-CHANGES with a ranked list.
    >
-   > PLAN: <plan.md contents>
+   > PLAN: <the plan contents, inlined — `codex exec -` reads stdin as its
+   > whole prompt, so a path alone is not enough>
 
 3. **Adjudicate and revise.** For each Codex critique point: accept (revise
    the plan) or reject (verify against the code first; never dismiss
@@ -113,8 +133,11 @@ primary working tree.
 
 - Same plumbing as /dual-review: OpenAI Codex CLI installed + authenticated;
   don't edit the user's `~/.codex/config.toml` — always override reasoning
-  effort to `high` via `-c`, and check which model the config pins (a mini
-  model gives shallow critiques; override via `-c model=...` if needed).
+  effort to `high` via `-c`. Under config isolation the config's model pin
+  does not apply: the CLI default runs unless you pass `-c model=...`.
+  Codex prints `model: <name>` in its startup header — read it, and re-run
+  with `-c model=<your flagship>` if it is a mini tier (a mini model gives
+  shallow critiques).
   macOS + Codex desktop app: if `codex` is symlinked out of the app bundle,
   its sibling helper `codex-code-mode-host` must be symlinked into the same
   directory too, or every run fails with "failed to spawn code-mode host" —

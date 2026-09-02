@@ -1,0 +1,32 @@
+{
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "inspected_files": {
+            "type": "integer"
+        },
+        "first_header": {
+            "type": "string"
+        },
+        "verdict": {
+            "type": "string",
+            "enum": [
+                "CLEAN",
+                "FINDINGS",
+                "FILE-NOT-READ"
+            ]
+        },
+        "findings": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        }
+    },
+    "required": [
+        "inspected_files",
+        "first_header",
+        "verdict",
+        "findings"
+    ]
+}
