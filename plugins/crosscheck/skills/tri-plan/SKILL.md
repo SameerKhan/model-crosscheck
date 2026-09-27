@@ -15,7 +15,7 @@ point BOTH critics raise independently is near-certain to be real.
 
 | Leg | Model | Where it's set |
 |---|---|---|
-| **Claude** (plan draft, adjudication, implementation) | the newest top-tier Claude available (2026-09: Fable 5.1, then Fable 5, then Opus 5) | the session model, see below |
+| **Claude** (plan draft, adjudication, implementation) | the current release of a top-tier Claude family (2026-09: Fable 5.1 or Opus 5.5) | the session model, see below |
 | Codex critic | the CLI's default under config isolation, read the `model:` line Codex prints at startup; `-c model=...` to override | `--ephemeral --ignore-user-config -s read-only`, effort forced to `high` |
 | Gemini critic | the newest Gemini on the plan (2026-09: `gemini-3.8-flash-high`, a floor, not a pin) | `--model` on every `agy` call |
 
@@ -34,11 +34,12 @@ Claude cannot switch its own main-loop model, so **check before starting**.
 The active model is stated in the session's environment context (the user can
 also confirm with `/status`).
 
-- On a top-tier Claude (Fable/Opus-class) at least as new as the table's
-  dated example → proceed. Newer than the example also passes, and a `[1m]`
-  context-window suffix on the model id is the same model.
-- On a fast/cheap tier (Haiku/Sonnet-class), or a top tier older than the
-  example → **stop before step 1**, say which model the Claude leg would
+- On the current release of a top-tier family (Fable/Opus-class; 2026-09:
+  Fable 5.1 or Opus 5.5) → proceed. A later release also passes, and a
+  `[1m]` context-window suffix on the model id is the same model.
+- On a fast/cheap tier (Haiku/Sonnet-class), or a superseded top-tier
+  release (Fable 5 once 5.1 exists, Opus 5 once 5.5 exists) → **stop
+  before step 1**, say which model the Claude leg would
   run on, and ask the user to switch (`/model` lists what the plan offers,
   pick the newest top-tier Claude) and re-invoke. Don't draft on a
   downgraded model and then spend two critic CLIs on it. If you genuinely
@@ -131,7 +132,10 @@ identical on every platform.
    > You are deciding whether to AUTHORIZE this plan to run, assume it will
    > execute unattended, against production, with the credentials the
    > operator already holds. Do NOT implement anything, do NOT edit files.
-   > You may read any file needed to answer these. Check: (1) what
+   > You may read any file inside the repository needed to answer these.
+   > Never open credential stores (`~/.claude.json`, `~/.codex/`,
+   > `~/.gemini/`, `~/.aws/`, `~/.ssh/`, `.env*`, keychains): if an answer
+   > depends on one, name the fact you needed instead. Check: (1) what
    > privileges it needs, and whether they are ENFORCED or merely assumed,
    > "read-only by convention" is not read-only; (2) what shared or
    > long-lived resources it mutates (shared virtualenvs, global config,
@@ -149,6 +153,14 @@ identical on every platform.
    >
    > PLAN: <for Codex, the plan contents inlined, `codex exec -` reads stdin
    > as its whole prompt; for Gemini, the absolute path it must read_file>
+
+   **Lens B's read scope is not boilerplate.** "Would you authorize this?"
+   invites a critic to go and inspect the operator's setup. In a real run,
+   the earlier wording ("you may read any file needed") led a Gemini
+   critic straight to `~/.claude.json`. `-s read-only` and `--sandbox`
+   block writes, not reads of absolute paths, so the prompt is the only
+   fence: state the config facts the lens needs inline, with secret values
+   removed, rather than letting a critic fetch them.
 
    **The executable-claim check (in Lens A) is the highest-value single
    rule here.** A plan that says "inject the credentials at call time"

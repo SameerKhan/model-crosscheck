@@ -13,20 +13,20 @@ disagreement tells the user where to look manually.
 
 | Leg | Model | Where it's set |
 |---|---|---|
-| **Claude** (verification + merge) | the newest top-tier Claude available (2026-09: Fable 5.1, then Fable 5, then Opus 5) | the session model, see below |
+| **Claude** (verification + merge) | the current release of a top-tier Claude family (2026-09: Fable 5.1 or Opus 5.5) | the session model, see below |
 | Codex | the CLI's default under config isolation, read the `model:` line Codex prints at startup; `-c model=...` to override | `--ephemeral --ignore-user-config -s read-only`, effort forced to `high` |
 
 The Claude leg holds the repo context, verifies Codex's findings, and writes
 the merge, so it must not be the cheap seat. Check the active model (stated
-in the session's environment context; `/status` confirms it) before step 1:
-on a top-tier Claude (Fable/Opus-class) at least as new as the dated example
-→ proceed, newer also passes, the example is a floor, not a pin, and a
-`[1m]` context-window suffix is the same model. On a fast/cheap tier
-(Haiku/Sonnet-class) or an older top tier → stop, say which model the
-Claude leg would run on, and ask the user to switch via `/model` and
-re-invoke. Pin any subagent explicitly, `subagent_type` (Agent tool) or
-`agentType` (Workflow scripts) without `model` inherits that agent
-definition's own model.
+in the session's environment context; `/status` confirms it) before step 1.
+On the current release of a top-tier family (Fable/Opus-class; the dated
+examples are a floor, so a later release also passes, and a `[1m]`
+context-window suffix is the same model): proceed. On a fast/cheap tier
+(Haiku/Sonnet-class), or a superseded top-tier release (Fable 5 once 5.1
+exists, Opus 5 once 5.5 exists): stop, say which model the Claude leg would
+run on, and ask the user to switch via `/model` and re-invoke. Pin any
+subagent explicitly: `subagent_type` (Agent tool) or `agentType` (Workflow
+scripts) without `model` inherits that agent definition's own model.
 
 ## Steps
 
@@ -36,8 +36,11 @@ definition's own model.
      `origin/<trunk>...HEAD`, Codex flag = `--base origin/<trunk>`. Run `git fetch` first
      and give both reviewers the SAME ref, a stale local trunk vs
      `origin/<trunk>` silently produces two different diffs.
-   - Only uncommitted working-tree changes: Codex flag = `--uncommitted`,
-     and review the working-tree diff on the Claude side.
+   - Only uncommitted working-tree changes: Codex flag = `--uncommitted`
+     (which includes untracked files), and review the working-tree diff on
+     the Claude side. `git diff HEAD` omits untracked files, so list them
+     with `git ls-files --others --exclude-standard` and read each one, or
+     the two reviewers are looking at different changes.
    - Both committed AND uncommitted changes: `--base` and `--uncommitted`
      are mutually exclusive, so don't pick silently, ask the user to
      commit/stash first, or review the committed scope and state explicitly
@@ -46,11 +49,19 @@ definition's own model.
 2. **Start the Codex review in the background** (it takes several minutes):
 
    ```bash
-   codex exec --ephemeral --ignore-user-config -s read-only review --base origin/<trunk> -c model_reasoning_effort="high"
-   # or: codex exec --ephemeral --ignore-user-config -s read-only review --uncommitted -c model_reasoning_effort="high"
+   OUT=$(mktemp); ERR=$(mktemp)
+   codex exec --ephemeral --ignore-user-config -s read-only review --base origin/<trunk> -c model_reasoning_effort="high" -o "$OUT" < /dev/null 2> "$ERR"
+   # or: ... review --uncommitted ... (same flags, same redirects)
    ```
 
-   Run via Bash with `run_in_background: true`. Always pass
+   Run via Bash with `run_in_background: true`. **`< /dev/null` is
+   mandatory.** `codex exec` waits for stdin to reach EOF before it starts,
+   even when stdin carries nothing it needs; a background shell whose stdin
+   stays open hangs forever at 0% CPU with "Reading additional input from
+   stdin..." as its only output (measured on codex-cli 0.146: 51 s with a
+   pipe held open for 45 s, 5 s with `< /dev/null`). `-o` writes the final
+   review to its own file; the model name Codex runs on is in `$ERR`. Always
+   pass
    `-s read-only`, the user's `~/.codex/config.toml` may default to a
    write-enabled sandbox, and a reviewer must never touch the tree. Always
    override reasoning effort to `high`, a low default is too weak for
@@ -69,7 +80,9 @@ definition's own model.
 
 5. **Rebuttal round, a refuted finding gets a defense.** If any Codex
    findings were REJECTED in step 4, send Codex ONE follow-up
-   (`codex exec`, read-only) containing each rejected finding plus the
+   (`codex exec --ephemeral --ignore-user-config -s read-only
+   -c model_reasoning_effort="high" "<prompt>" < /dev/null`, stdin closed
+   as in step 2) containing each rejected finding plus the
    refutation evidence, asking it to CONCEDE or DEFEND each with code
    citations. Concede → drop silently. Defend → re-examine once; if you still
    disagree, include it in the report as **[disputed]** with both positions
@@ -84,13 +97,19 @@ definition's own model.
 
 ## Notes
 
-- **Cross-platform:** the snippets above are bash/zsh, but this skill runs
-  only `git` and `codex` commands, both identical on Windows. The one
-  translation needed is the config path: `~/.codex/config.toml` is
-  `$env:USERPROFILE\.codex\config.toml` in PowerShell, or
+- **Cross-platform:** the snippets above are bash/zsh. On PowerShell:
+  `mktemp` is `(New-TemporaryFile).FullName`; PowerShell reserves `<`, so
+  close stdin by piping nothing in instead (`$null | codex exec ...`; the
+  hang itself was measured on macOS, the Windows form is untested);
+  `~/.codex/config.toml` is `$env:USERPROFILE\.codex\config.toml`, or
   `$env:CODEX_HOME\config.toml`, since `CODEX_HOME` names the directory, not
-  the file.
-  The `codex-code-mode-host` symlink trap below is macOS-only.
+  the file. The `codex-code-mode-host` symlink trap below is macOS-only.
+- **Hung or thinking?** Check elapsed time and CPU of the exact process:
+  `ps -Ao pid,etime,%cpu,command | grep '[c]odex exec'`. Sustained 0.0% CPU
+  with nothing new in `$ERR` means hung. Counting `codex` processes proves
+  nothing (IDE app-servers and MCP children match too), and piping the run
+  through `| tail` buffers the output so a working run looks identical to a
+  hung one. macOS has no `timeout` command by default.
 - Requires the OpenAI Codex CLI (`codex`) installed and authenticated
   (`codex login`). Don't change the user's global `~/.codex/config.toml`;
   use `-c` overrides only.

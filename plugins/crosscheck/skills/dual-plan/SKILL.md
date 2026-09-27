@@ -14,20 +14,21 @@ agree with it.
 
 | Leg | Model | Where it's set |
 |---|---|---|
-| **Claude** (plan draft, adjudication, implementation) | the newest top-tier Claude available (2026-09: Fable 5.1, then Fable 5, then Opus 5) | the session model, see below |
+| **Claude** (plan draft, adjudication, implementation) | the current release of a top-tier Claude family (2026-09: Fable 5.1 or Opus 5.5) | the session model, see below |
 | Codex critic | the CLI's default under config isolation, read the `model:` line Codex prints at startup; `-c model=...` to override | `--ephemeral --ignore-user-config -s read-only`, effort forced to `high` |
 
 Claude drafts the plan and rules on the critique, the critic only ever
 reacts to what Claude produced, so a weak draft caps the whole run. Check the
 active model (stated in the session's environment context; `/status`
-confirms it) before step 1: on a top-tier Claude (Fable/Opus-class) at least
-as new as the dated example → proceed, newer also passes, the example is a
-floor, not a pin, and a `[1m]` context-window suffix is the same model. On
-a fast/cheap tier (Haiku/Sonnet-class) or an older top tier → stop, say
-which model the Claude leg would run on, and ask the user to switch via
-`/model` and re-invoke. Pin any subagent explicitly, `subagent_type`
-(Agent tool) or `agentType` (Workflow scripts) without `model` inherits
-that agent definition's own model.
+confirms it) before step 1. On the current release of a top-tier family
+(Fable/Opus-class; the dated examples are a floor, so a later release also
+passes, and a `[1m]` context-window suffix is the same model): proceed. On
+a fast/cheap tier (Haiku/Sonnet-class), or a superseded top-tier release
+(Fable 5 once 5.1 exists, Opus 5 once 5.5 exists): stop, say which model
+the Claude leg would run on, and ask the user to switch via `/model` and
+re-invoke. Pin any subagent explicitly: `subagent_type` (Agent tool) or
+`agentType` (Workflow scripts) without `model` inherits that agent
+definition's own model.
 
 ## Cross-platform: the snippets below are bash/zsh
 
@@ -37,6 +38,7 @@ and translate; don't paste the bash form and hope:
 | bash/zsh | PowerShell |
 |---|---|
 | `codex exec ... - < "$PROMPT"` | `Get-Content $prompt \| codex exec ... -`, PowerShell **reserves `<`** and errors on it |
+| `codex exec ... "<spec>" < /dev/null` | `$null \| codex exec ... "<spec>"` (closes stdin; untested on Windows) |
 | `PROMPT=$(mktemp)` | `$prompt = (New-TemporaryFile).FullName` |
 | `~/.codex/config.toml` | `$env:USERPROFILE\.codex\config.toml` (or `$env:CODEX_HOME\config.toml`, `CODEX_HOME` is the directory, not the file) |
 
@@ -117,8 +119,15 @@ piece itself in an ISOLATED git worktree:
 ```bash
 WT=$(mktemp -d)
 git worktree add "$WT" HEAD
-cd "$WT" && codex exec --sandbox workspace-write "<subtask spec>"
+cd "$WT" && codex exec --ephemeral --ignore-user-config --sandbox workspace-write -c model_reasoning_effort="high" "<subtask spec>" < /dev/null
 ```
+
+`< /dev/null` closes stdin: with the spec passed as an argument, `codex
+exec` still waits for stdin to reach EOF and hangs in a background shell
+(see /dual-review's Notes). The config-isolation flags matter more here
+than anywhere else, because this is the one run that can write: without
+them, every MCP server in `~/.codex/config.toml` is live next to a
+write-enabled agent.
 
 (On Windows: `$WT = (New-Item -ItemType Directory -Path (Join-Path $env:TEMP ([guid]::NewGuid()))).FullName`,
 the table's `New-TemporaryFile` creates a *file*, not a directory. The

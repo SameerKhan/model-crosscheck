@@ -13,7 +13,7 @@ finding is real; disagreement tells the user exactly where to look manually.
 
 | Leg | Model | Where it's set |
 |---|---|---|
-| **Claude** (verification + merge; see step 4 re `/code-review`) | the newest top-tier Claude available (2026-09: Fable 5.1, then Fable 5, then Opus 5) | the session model, see below |
+| **Claude** (verification + merge; see step 4 re `/code-review`) | the current release of a top-tier Claude family (2026-09: Fable 5.1 or Opus 5.5) | the session model, see below |
 | Codex | the CLI's default under config isolation, read the `model:` line Codex prints at startup; `-c model=...` to override | `--ephemeral --ignore-user-config -s read-only`, effort forced to `high` |
 | Gemini | the newest Gemini on the plan (2026-09: `gemini-3.8-flash-high`, a floor, not a pin) | `--model` on every `agy` call |
 
@@ -32,11 +32,12 @@ Claude cannot switch its own main-loop model, so **check before starting**.
 The active model is stated in the session's environment context (the user can
 also confirm with `/status`).
 
-- On a top-tier Claude (Fable/Opus-class) at least as new as the table's
-  dated example → proceed. Newer than the example also passes, and a `[1m]`
-  context-window suffix on the model id is the same model.
-- On a fast/cheap tier (Haiku/Sonnet-class), or a top tier older than the
-  example → **stop before step 1**, say which model the Claude leg would
+- On the current release of a top-tier family (Fable/Opus-class; 2026-09:
+  Fable 5.1 or Opus 5.5) → proceed. A later release also passes, and a
+  `[1m]` context-window suffix on the model id is the same model.
+- On a fast/cheap tier (Haiku/Sonnet-class), or a superseded top-tier
+  release (Fable 5 once 5.1 exists, Opus 5 once 5.5 exists) → **stop
+  before step 1**, say which model the Claude leg would
   run on, and ask the user to switch (`/model` lists what the plan offers,
   pick the newest top-tier Claude) and re-invoke. Don't quietly run a
   "triple review" with a downgraded Claude seat. If you genuinely can't
@@ -48,13 +49,15 @@ also confirm with `/status`).
 
 ## Cross-platform: the snippets below are bash/zsh
 
-On Windows (PowerShell) three of them break outright. Detect the shell and
+On Windows (PowerShell) several of them break outright. Detect the shell and
 translate; don't paste the bash form and hope:
 
 | bash/zsh | PowerShell |
 |---|---|
 | `PATCH=$(mktemp)` | `$PATCH = (New-TemporaryFile).FullName` |
 | `cmd - < prompt.md` | `Get-Content prompt.md \| cmd -`, PowerShell **reserves `<`** and errors on it |
+| `codex exec ... < /dev/null` | `$null \| codex exec ...` (closes stdin; untested on Windows) |
+| `[ -s "$NEW" ] && ...` | `if ((Get-Item $NEW).Length -gt 0) { ... }` |
 | `rm -f "$PATCH"` | `Remove-Item $PATCH -Force` |
 | `~/.codex/config.toml` | `$env:USERPROFILE\.codex\config.toml` (or `$env:CODEX_HOME\config.toml`, `CODEX_HOME` is the directory, not the file) |
 | `~/.gemini/antigravity-cli/settings.json` | `$env:USERPROFILE\.gemini\antigravity-cli\settings.json` |
@@ -73,11 +76,26 @@ merge logic) is identical on every platform.
      `git fetch` first and give all three reviewers the SAME ref, a stale
      local trunk vs `origin/<trunk>` silently produces different diffs.
    - Only uncommitted working-tree changes: Codex flag = `--uncommitted`,
-     and review the working-tree diff on the Claude and Gemini sides. Run
-     `git add --intent-to-add .` first so newly created untracked files
-     appear in `git diff HEAD`, otherwise two of the three reviewers
-     silently never see them. (Undo afterwards with `git reset` if the user
-     doesn't want them staged.)
+     and review the working-tree diff on the Claude and Gemini sides.
+     Newly created untracked files are missing from `git diff HEAD`, so two
+     of the three reviewers would silently never see them. Mark exactly
+     those files intent-to-add, and afterwards reset exactly those files:
+
+     ```bash
+     NEW=$(mktemp)
+     git ls-files -z --others --exclude-standard > "$NEW"
+     [ -s "$NEW" ] && git add --intent-to-add --pathspec-from-file="$NEW" --pathspec-file-nul
+     # ... write the patch (step 2) ...
+     [ -s "$NEW" ] && git reset -q --pathspec-from-file="$NEW" --pathspec-file-nul
+     ```
+
+     Both guards matter. A bare `git reset` afterwards would unstage
+     everything the user had deliberately staged, and so does
+     `git reset --pathspec-from-file` given an **empty** list (verified on
+     git 2.54: an empty pathspec file means "no pathspec", which means the
+     whole index). Read the `$NEW` list before sending the patch
+     out: an untracked `.env` or key file that `.gitignore` misses is now
+     in it, and the patch goes to two outside vendors.
    - Both committed AND uncommitted changes: `--base` and `--uncommitted`
      are mutually exclusive, so don't pick silently, ask the user to
      commit/stash first, or review the committed scope and state explicitly
@@ -102,9 +120,14 @@ merge logic) is identical on every platform.
    several minutes). Two separate Bash calls with `run_in_background: true`:
 
    ```bash
-   codex exec --ephemeral --ignore-user-config -s read-only review --base origin/<trunk> -c model_reasoning_effort="high"
-   # or: codex exec --ephemeral --ignore-user-config -s read-only review --uncommitted -c model_reasoning_effort="high"
+   OUT=$(mktemp); ERR=$(mktemp)
+   codex exec --ephemeral --ignore-user-config -s read-only review --base origin/<trunk> -c model_reasoning_effort="high" -o "$OUT" < /dev/null 2> "$ERR"
+   # or: ... review --uncommitted ... (same flags, same redirects)
    ```
+
+   **`< /dev/null` is mandatory**: `codex exec` waits for stdin to reach
+   EOF before it starts, so a background shell with an open stdin hangs
+   forever at 0% CPU (see Notes: Codex leg).
 
    ```bash
    agy --sandbox --model <newest-gemini-on-plan> --print-timeout 8m -p "You are a senior code reviewer. Read the file <PATCH_PATH> with read_file, it is a git diff. Review it for real bugs only (correctness, security, data loss), not style. You MAY read_file the repo files named in the diff headers for surrounding context, but do NOT search or explore beyond them and do NOT run commands. Begin your reply with one line: INSPECTED: <number of files in the diff> | <the first diff --git header line, verbatim>. If you could not read the file, output FILE-NOT-READ instead of a review. Then output findings as one line each: file:line | issue | why it breaks. If none, output CLEAN on the line after the INSPECTED preamble."
@@ -139,10 +162,19 @@ merge logic) is identical on every platform.
    > what permissions and retention, and can any of it reach version
    > control? What happens on failure, orphaned processes, tunnels, temp
    > state, and is cleanup failure detected or merely hoped for? What does
-   > a partial run leave behind? Verdict: AUTHORIZE / DO-NOT-AUTHORIZE.
+   > a partial run leave behind? Read files inside the repository only;
+   > never open credential stores (`~/.claude.json`, `~/.codex/`,
+   > `~/.gemini/`, `~/.aws/`, `~/.ssh/`, `.env*`). If an answer depends on
+   > one, say which fact you needed. Verdict: AUTHORIZE / DO-NOT-AUTHORIZE.
 
    Reviewing such a diff for "bugs" alone reliably misses this entire
-   class, because nobody was asked.
+   class, because nobody was asked. The read-scope sentence is there
+   because an operations question invites a critic to go and look at the
+   operator's configuration: in a real `/tri-plan` run a Gemini critic
+   given "you may read any file needed" opened `~/.claude.json`. The
+   sandboxes block writes, not reads of absolute paths, so the prompt is
+   the only fence. Put any config facts the pass needs into the prompt
+   yourself, with secret values removed.
 
 4c. **Execute state-machine logic; don't just read it.** For supervisors,
    retry/backoff, cleanup handlers, signal handling and exit-code
@@ -172,7 +204,9 @@ merge logic) is identical on every platform.
    REJECTED in step 5, send the originating model ONE follow-up containing
    the finding plus your refutation evidence, asking it to CONCEDE or DEFEND
    with code citations:
-   - Codex: `codex exec` (read-only, config-isolated as in step 3).
+   - Codex: `codex exec --ephemeral --ignore-user-config -s read-only
+     -c model_reasoning_effort="high" "<prompt>" < /dev/null` (the
+     prompt as an argument, stdin closed as in step 3).
    - Gemini: `agy --sandbox --model <model> -p "..."` (include the
      refutation inline; reference the patch file again).
    Require the reply to open by quoting the disputed finding's file:line
@@ -227,12 +261,14 @@ merge logic) is identical on every platform.
   extra keys the model invented) and compare `inspected_files` and
   `first_header` to the patch yourself; a mismatch is a hollow run.
   `--json-schema` is rejected unless `--output-format` is `json` or
-  `stream-json`. No receipt applies to the step 3 Codex leg: the built-in
-  `review` subcommand takes neither a prompt nor a schema, and it reads the
-  repo itself, so there is no path to lose. `codex exec --output-schema
-  <file> "<prompt>"` exists for the custom-prompt form (tri-research's
-  auditor, for one) and prints the constrained JSON directly, there is no
-  `structured_output` envelope to look for.
+  `stream-json`. No receipt applies to the step 3 Codex leg: `review`
+  accepts a custom prompt only without `--base`/`--uncommitted` (combining
+  them exits 2), and it silently ignores `--output-schema` (both verified on
+  codex-cli 0.146). It reads the repo itself, so there is no path to lose.
+  For the custom-prompt form (tri-research's auditor, for one), `codex exec
+  --output-schema <file> "<prompt>" < /dev/null` does work: it prints the
+  constrained JSON directly, with no `structured_output` envelope to look
+  for.
 - **Constrain exploration explicitly** ("do NOT search or explore beyond
   them, do NOT run commands"), without it the agent wanders the repo and
   exceeds `--print-timeout` with no output.
@@ -269,6 +305,17 @@ merge logic) is identical on every platform.
   (`codex login` or the Codex desktop app). Don't change the user's global
   `~/.codex/config.toml`; use `-c` overrides only. Always override reasoning
   effort to `high`, a low default is too weak for review.
+- **Close stdin on every `codex exec`.** It waits for stdin to reach EOF
+  before starting, even when the prompt is an argument or the subcommand
+  is `review`. Under a background shell whose stdin stays open that is a
+  permanent hang: 0% CPU, "Reading additional input from stdin..." in
+  stderr and nothing else (a real leg sat like that for six hours).
+  Measured on codex-cli 0.146: 51 s with a pipe held open for 45 s, 5 s
+  with `< /dev/null`. Forms that feed a prompt file (`- < file.md`) are
+  already safe. To tell hung from thinking, read elapsed time and CPU of
+  the exact process (`ps -Ao pid,etime,%cpu,command | grep '[c]odex
+  exec'`); never pipe the run through `| tail`, which hides progress until
+  exit.
 - Under config isolation your `~/.codex/config.toml` model pin does **not**
   apply, the CLI's built-in default runs unless you pass `-c model=...`.
   Codex prints `model: <name>` in its startup header on every run: read it

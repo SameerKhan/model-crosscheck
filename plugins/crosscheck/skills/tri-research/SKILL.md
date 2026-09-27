@@ -62,25 +62,33 @@ failure point across these skills, and this is the skill that reviews it.
 
 | Leg | Model | Where it's set |
 |---|---|---|
-| **Claude** (ledger, resolution, output) | the newest top-tier Claude available (2026-09: Fable 5.1, then Fable 5, then Opus 5) | the session model, check before step 0 |
+| **Claude** (ledger, resolution, output) | the current release of a top-tier Claude family (2026-09: Fable 5.1 or Opus 5.5) | the session model, check before step 0 |
 | Codex | the CLI's default under config isolation, read the `model:` line Codex prints at startup; `-c model=...` to override | `--ephemeral --ignore-user-config -s read-only`, effort forced `high`, **web search enabled** |
-| Gemini | the newest Gemini on the plan (2026-09: `gemini-3.8-flash-high`, a floor, not a pin) | `--model` on every `agy` call; web access on by default |
+| Gemini | the newest Gemini on the plan (2026-09: `gemini-3.8-flash-high`, a floor, not a pin) | `--model` on every `agy` call; **web fetch needs per-domain allow rules**, see below |
 
 **Verified against codex-cli 0.146, do not re-derive:** `--search` is
 **not** a valid flag on `codex exec`, it exists on the interactive TUI
 only, and exec exits 2 with "unexpected argument". The working form is
 `-c tools.web_search=true`, and it fetches fine under `-s read-only`,
 because the tool is server-side rather than shell egress. `agy` needs no
-flag at all; its `read_url_content` works under `--sandbox`.
+flag, and its `read_url_content` tool works under `--sandbox`, **but
+headless mode auto-denies it unless the URL is allowlisted**: the leg dies
+with "a tool required the read_url permission". Before step 3, add one
+rule per domain the ledger cites to `permissions.allow` in
+`~/.gemini/antigravity-cli/settings.json`, in the form
+`read_url(https://buffer.com/*)`. Scope each rule to a domain; never add
+`command(curl)` or any other shell egress to "unblock" the leg (a denied
+fetch has been seen to fall back to trying `curl`), and never use
+`--dangerously-skip-permissions`.
 
-If the session is not on the newest top-tier Claude the plan offers (the
-dated example, Fable 5.1 as of 2026-09, is a floor that goes stale, not
-the rule: a newer top tier also passes, and a `[1m]` suffix is the same
-model), say so and ask the user to switch
-before step 0; stop only for fast/cheap tiers (Haiku/Sonnet-class) or a
-top tier older than the example, and if you genuinely can't classify the
-session model, name it and ask. Pin any subagent this skill spawns to the
-same tier explicitly (`model`, not just `subagent_type`).
+If the session is not on the current release of a top-tier Claude family
+(Fable/Opus-class; 2026-09: Fable 5.1 or Opus 5.5; the dated examples are
+a floor, so a later release also passes, and a `[1m]` suffix is the same
+model), say so and ask the user to switch before step 0. Stop only for a
+fast/cheap tier (Haiku/Sonnet-class) or a superseded top-tier release
+(Fable 5 once 5.1 exists, Opus 5 once 5.5 exists); if you genuinely can't
+classify the session model, name it and ask. Pin any subagent this skill
+spawns to the same tier explicitly (`model`, not just `subagent_type`).
 
 ## Cross-platform
 
@@ -187,8 +195,12 @@ stdin), and `--skip-git-repo-check` is required with it: a non-git
 directory otherwise trips Codex's trusted-directory check and the leg dies
 before any model call, with piped stdin it hangs rather than failing
 (verified on codex-cli 0.146). Gemini has no `-C`: write `audit-gemini.md`
-alone into a scratch directory of its own and name that absolute path.
-Neither is a confidentiality boundary, see Notes. The brief in each file:
+alone into a scratch directory of its own and name that absolute path, and
+add to its prompt "Fetch pages with read_url_content only. Do not run
+commands." If the leg dies on a permission error, or marks every row
+UNVERIFIABLE, treat it as a setup failure (fix the allow rules, re-run
+once), not as an audit result. Neither scratch directory is a confidentiality
+boundary, see Notes. The brief in each file:
 
 > Attached is a claim ledger. Begin your reply with one line: READ: <row
 > R1's Claim column, verbatim>, or FILE-NOT-READ if you could not open the

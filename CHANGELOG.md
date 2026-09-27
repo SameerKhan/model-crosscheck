@@ -5,6 +5,46 @@ Dates are commit dates. Every entry since 1.2.1 was itself reviewed with
 `/tri-review` before it shipped; the findings that changed the release are
 noted where they mattered.
 
+## 2.7.0 (2026-09-27)
+
+- **Every `codex exec` closes stdin (`< /dev/null`).** `codex exec` waits
+  for stdin to reach EOF even when the prompt is an argument, and even for
+  `review`, so a background shell with an open stdin hung forever at 0%
+  CPU (measured on codex-cli 0.146: 51 s with a pipe held open for 45 s,
+  5 s with `< /dev/null`). Fixed in `/dual-review` and `/tri-review` (review
+  and rebuttal) and the `/dual-plan` co-coder, which also gains the
+  config-isolation flags. Review legs write the final review with `-o`.
+- **Model gate is decidable again.** "At least as new as Fable 5.1" could
+  not rank Opus 5.5. The gate now passes the current release of a top-tier
+  family (2026-09: Fable 5.1 or Opus 5.5) and stops on fast tiers or
+  superseded releases.
+- **`/tri-review` no longer unstages your work.** The uncommitted-scope
+  step marked every untracked file intent-to-add and then said to undo
+  with a bare `git reset`, which unstaged everything. It now adds and
+  resets exactly the untracked files, guarded against an empty list (an
+  empty `--pathspec-from-file` also resets the whole index; verified on
+  git 2.54).
+- **Critics are told to stay out of credential stores.** `/tri-plan` Lens B
+  said "you may read any file needed", and in a real run a Gemini critic
+  opened `~/.claude.json`. Lens B and `/tri-review`'s operations pass now
+  scope reads to the repository and name credential paths as off-limits.
+- **`/tri-research` Gemini auditor setup.** Headless `agy` denies
+  `read_url_content` unless the domain is allowlisted, which killed the
+  leg; the skill now says to add per-domain `read_url(...)` rules and never
+  to allowlist `curl` instead.
+- `/tri-review` notes: `codex exec review` accepts a custom prompt only
+  without `--base`/`--uncommitted`, and silently ignores `--output-schema`
+  (both verified).
+- `/tri-strategy` no longer claims the trigger "decide this with all
+  three", which collided with `/tri-decide`.
+- README: a "What leaves your machine" section, the stdin and Gemini
+  allowlist tips, about 35 sentences the em-dash pass left garbled, and a
+  duplicated paragraph removed.
+- `scripts/check.sh` + a GitHub Action: valid JSON, skill names match
+  their directories and appear in the README and manifests, the version
+  matches the CHANGELOG, no em-dashes, no `codex exec` with an open stdin,
+  no unguarded `git reset --pathspec-from-file`.
+
 ## 2.6.1 (2026-09-03)
 
 - Style only: every em-dash in the README and the seven skills recast
