@@ -9,6 +9,12 @@ Two independent reviews of the same diff, merged into one report. The value is
 in the merge: agreement between two different models is a strong signal;
 disagreement tells the user where to look manually.
 
+> **Sibling skills.** `/dual-review`, `/tri-review` and the rest name the
+> other skills in this set. Installed as the plugin, invoke them as
+> `/crosscheck:<name>`; as plain copies, as `/<name>`. Either way their
+> files sit next to this one, so "see /tri-review's Notes" means
+> `../tri-review/SKILL.md` relative to this skill's base directory.
+
 ## Model per leg: pin both
 
 | Leg | Model | Where it's set |
@@ -69,10 +75,14 @@ scripts) without `model` inherits that agent definition's own model.
    `-s read-only`, the user's `~/.codex/config.toml` may default to a
    write-enabled sandbox, and a reviewer must never touch the tree. Always
    override reasoning effort to `high`, a low default is too weak for
-   review. If the sandbox blocks network access, grant network to the
-   sandboxed run; never disable the sandbox for a review.
+   review. A review needs no network from the shell (model calls go
+   through the CLI itself), and shell egress next to an untrusted diff is
+   an exfiltration path: if the leg fails for want of network, report it;
+   never widen or disable the sandbox for a review.
 
 3. **While Codex runs, invoke `/code-review` at high effort** on the same scope.
+   If `/code-review` is not available in this Claude Code, say so and review
+   the diff directly at the same depth; do not skip the Claude leg.
 
 4. **Merge the findings** once both are done:
    - **Agreed** (both flagged the same issue): report first, highest confidence.

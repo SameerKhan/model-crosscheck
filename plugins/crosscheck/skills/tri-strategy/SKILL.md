@@ -10,6 +10,12 @@ changes that matter, the models argue from **assigned lenses** rather than
 as generalists, they reason over an **evidence pack you assemble** rather
 than a codebase they can read, and **no number may be invented**.
 
+> **Sibling skills.** `/dual-review`, `/tri-review` and the rest name the
+> other skills in this set. Installed as the plugin, invoke them as
+> `/crosscheck:<name>`; as plain copies, as `/<name>`. Either way their
+> files sit next to this one, so "see /tri-review's Notes" means
+> `../tri-review/SKILL.md` relative to this skill's base directory.
+
 ## Read this before running it
 
 **The other two models cannot see your business.** In /tri-review and
@@ -42,7 +48,9 @@ terminal, not MCP tools, so run `agy mcp list` first: if it shows an
 enabled server, `agy mcp disable <name>` for the run and `agy mcp enable
 <name>` afterwards, success or failure (the disable persists across
 sessions), or do not make the
-pack-only claim. Only then do the legs see the pack and only the pack. If a
+pack-only claim. Only then is the pack the only business data the legs are
+handed. It is not a read boundary: both sandboxes block writes, not reads
+of local files, so keep business exports out of the repo tree too. If a
 first-party number needs a second
 model's re-derivation, that is /tri-research's job under its confidentiality
 rules, not a licence to hand a lens leg production access mid-argument,
@@ -108,8 +116,8 @@ wrong**, the user, their customers, or their team. Put both in the memo.
 The brief is not a question, it is a **question plus the facts**. Pull real
 data before writing it, using whatever tools are available, billing and
 revenue systems, the product database, analytics, support transcripts,
-competitor pricing pages fetched live. Then write ONE file (`mktemp`)
-containing:
+competitor pricing pages fetched live. Then write ONE file
+(`PACK=$(mktemp)`) containing:
 
 - **The decision**: as a scoped question with a time horizon.
 - **The numbers, inline and dated.** Revenue and its composition, the
@@ -123,8 +131,17 @@ containing:
   was already tried and why it failed.
 - **What "this worked" looks like** at a named date, in a number.
 
-**If the numbers are load-bearing, run /tri-research on the pack first**,
-it is the only skill here that checks them. Without it, a wrong figure in
+**Minimize before it leaves the machine.** The pack goes to two outside
+vendors. Use aggregates, not customer-level rows; strip names, emails,
+company names and IDs from quoted customer text; never include secrets or
+credentials. If an argument needs a customer-level fact, state it as an
+anonymized aggregate.
+
+**If the public numbers are load-bearing, run /tri-research on them
+first** (`../tri-research/SKILL.md`); it is the only skill here that checks
+facts. It deliberately leaves first-party rows (billing, database,
+support) Claude-only and marks them `UNVERIFIED`, so it cannot catch a
+wrong internal number: re-derive those yourself by a second query path. Without it, a wrong figure in
 the pack propagates through both critiques untouched (they are forbidden
 from inventing numbers, so they faithfully reason from yours) and lands in
 the memo.
@@ -157,19 +174,27 @@ in step 4, when each is shown the others' cases.
 Launch the external legs in the background first, then write Claude's own
 lens **without opening their output**, blindness is on Claude to preserve.
 
+Each leg needs the **ask** (the quoted block below, with its lens filled
+in) *and* the pack. `codex exec -` treats stdin as its entire prompt, so
+piping the bare pack sends numbers with no instructions, no lens, and no
+MISSING FACT rule; build the prompt file from both. Gemini reads the pack
+by path, so its `-p` text is the ask itself.
+
 ```bash
-codex exec --ephemeral --ignore-user-config -s read-only -c model_reasoning_effort="high" - < /path/to/brief.md
+ASK=$(mktemp); CODEX_PROMPT=$(mktemp)   # write the ask, lens filled in, into "$ASK"
+cat "$ASK" "$PACK" > "$CODEX_PROMPT"
+codex exec --ephemeral --ignore-user-config -s read-only -c model_reasoning_effort="high" - < "$CODEX_PROMPT"
 ```
 
 ```bash
-agy --sandbox --model <newest-gemini-on-plan> --print-timeout 12m -p "<brief, naming the evidence pack's absolute path to read_file>"
+agy --sandbox --model <newest-gemini-on-plan> --print-timeout 12m -p "Read the evidence pack at <PACK_ABS_PATH> with read_file first. <the ask below, its lens filled in, plus the READ line requirement>"
 ```
 
-Require each external reply to open with one line, `READ: <the evidence
+Require the Gemini reply to open with one line, `READ: <the evidence
 pack's first line, verbatim>` (or `FILE-NOT-READ`); a lens argument
-without it means the pack was never read (see /tri-review's Notes on
-hollow verdicts), discard it and re-run once. Ask each leg for exactly
-this:
+without it means the pack was never read (see ../tri-review/SKILL.md,
+Notes, on hollow verdicts), discard it and re-run once. Codex needs no
+receipt: the pack is inlined into its prompt. The ask:
 
 > You are arguing the **<LENS>** case. Read the evidence pack and
 > recommend ONE course of action, reasoned from that lens specifically.
@@ -214,6 +239,11 @@ label**, "Case A / B / C", plus the facts resolved in step 3. Models
 defer to named authorities, and telling a model it is reading "the
 economics case" invites it to concede on economics rather than think.
 
+Every CLI call is a fresh session with no memory of step 2, so each prompt
+must also carry the pack and **that leg's own step-2 case labelled YOUR
+ORIGINAL CASE**; without it, "yours" below refers to nothing. Same
+plumbing as step 2.
+
 > Here are two alternative cases built on the same evidence, plus facts we
 > verified since. What do they account for that yours did not? Would you
 > change your recommendation, and if so, what specifically changed your
@@ -225,7 +255,9 @@ converge toward.
 
 ## Step 5: the strategy memo
 
-Write a dated memo to the user's docs directory:
+Write a dated memo. Use the user's existing docs location for decisions
+if there is one; otherwise `docs/decisions/YYYY-MM-DD-<slug>.md`, and say
+where you put it. Contents:
 
 1. **The decision, its class, months-to-unwind, and who bears the cost.**
 2. **The evidence pack summary**: the numbers the whole thing rests on,
@@ -250,6 +282,10 @@ Write a dated memo to the user's docs directory:
 and partner politics, personal appetite for risk. The models cannot see
 these and will not mention them; they frequently decide the matter. Name
 them as the user's input, not an input this skill can supply.
+
+Delete the scratch files (pack, prompts, cases) once the memo is
+written, success or failure: the pack holds business data, and the memo
+carries the summary a future reader needs.
 
 Present it as a decision for the user to rule on. **This skill does not
 decide.** When they choose, record the choice *and their reasoning*, the

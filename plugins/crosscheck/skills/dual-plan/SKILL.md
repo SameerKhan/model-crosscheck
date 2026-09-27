@@ -10,6 +10,12 @@ critiques at two gates, the plan and the final diff. The value is
 adversarial: Codex is prompted to find what the plan gets wrong, not to
 agree with it.
 
+> **Sibling skills.** `/dual-review`, `/tri-review` and the rest name the
+> other skills in this set. Installed as the plugin, invoke them as
+> `/crosscheck:<name>`; as plain copies, as `/<name>`. Either way their
+> files sit next to this one, so "see /tri-review's Notes" means
+> `../tri-review/SKILL.md` relative to this skill's base directory.
+
 ## Model per leg: pin both
 
 | Leg | Model | Where it's set |
@@ -110,7 +116,8 @@ convergence rules, and the round cap are identical on every platform.
    one tree causes conflicts.
 
 7. **Close with /dual-review** (the sibling skill) on the finished diff
-   before any PR/merge.
+   before any PR/merge. Then delete the scratch files (plan, prompts,
+   critiques); the plan the user approved belongs in the PR description.
 
 ## Advanced: Codex as co-coder (only when the user asks)
 
@@ -135,9 +142,11 @@ the table's `New-TemporaryFile` creates a *file*, not a directory. The
 requirement is that the worktree lives outside the primary working tree.)
 
 Then Claude reviews Codex's working-tree diff in the worktree, applies and
-commits the accepted changes onto the main branch, and /dual-review still
-gates the combined result. Never point a write-enabled Codex at the user's
-primary working tree.
+commits the accepted changes onto **the branch the feature started on**
+(not a hard-coded main branch), and /dual-review still gates the combined
+result. Then remove the worktree (`git worktree remove --force "$WT"`),
+after saving any rejected work the user wants to keep. Never point a
+write-enabled Codex at the user's primary working tree.
 
 ## Notes
 

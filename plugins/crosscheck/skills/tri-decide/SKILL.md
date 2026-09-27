@@ -9,6 +9,12 @@ Three models propose an approach to the same problem **blind**, then
 cross-examine each other's proposals anonymized. The output is a decision
 record for the user to rule on, never a verdict this skill issues itself.
 
+> **Sibling skills.** `/dual-review`, `/tri-review` and the rest name the
+> other skills in this set. Installed as the plugin, invoke them as
+> `/crosscheck:<name>`; as plain copies, as `/<name>`. Either way their
+> files sit next to this one, so "see /tri-review's Notes" means
+> `../tri-review/SKILL.md` relative to this skill's base directory.
+
 ## The rule that makes this different from /tri-review
 
 **Agreement is NOT signal here.** In /tri-review, two models flagging the
@@ -84,7 +90,7 @@ more trustworthy than one that always produces a deliberation.
 
 ## Step 1: freeze the brief
 
-Write ONE brief to a scratch file outside the repo (`mktemp`) and give
+Write ONE brief to a scratch file outside the repo (`BRIEF=$(mktemp)`) and give
 **all three legs the identical file**. Different briefs produce divergence
 that is an artifact of the prompt rather than the problem. The brief must
 contain:
@@ -107,21 +113,29 @@ then write Claude's proposal **without reading their output**, blindness
 is the point, and it is on Claude to preserve it. Do not open the critic
 output files until Claude's own proposal is written to disk.
 
+Each leg needs the **ask** (the quoted block below) *and* the brief. `codex
+exec -` treats stdin as its entire prompt, so piping the bare brief sends a
+problem statement with no instructions; build the prompt file from both.
+Gemini reads the brief by path, so its `-p` text is the ask itself.
+
 ```bash
-codex exec --ephemeral --ignore-user-config -s read-only -c model_reasoning_effort="high" - < /path/to/brief.md
+ASK=$(mktemp); CODEX_PROMPT=$(mktemp)   # write the ask below into "$ASK"
+cat "$ASK" "$BRIEF" > "$CODEX_PROMPT"
+codex exec --ephemeral --ignore-user-config -s read-only -c model_reasoning_effort="high" - < "$CODEX_PROMPT"
 ```
 
 ```bash
-agy --sandbox --model <newest-gemini-on-plan> --print-timeout 12m -p "<brief, naming the brief file's absolute path to read_file>"
+agy --sandbox --model <newest-gemini-on-plan> --print-timeout 12m -p "Read the brief at <BRIEF_ABS_PATH> with read_file first. <the ask below, verbatim, plus the READ line requirement>"
 ```
 
 Sandbox flags are mandatory (`-s read-only`, `--sandbox`), a proposer has
 no business writing to the tree. Remember `agy -p` does not read stdin;
-name the brief's absolute path in the prompt, and require each external
+name the brief's absolute path in the prompt, and require the Gemini
 reply to open with one line, `READ: <the brief's first line, verbatim>`
 (or `FILE-NOT-READ`). A fluent proposal from a leg that never read the
-brief is otherwise undetectable (see /tri-review's Notes on hollow
-verdicts); a reply without the READ line is discarded and re-run once.
+brief is otherwise undetectable (see ../tri-review/SKILL.md, Notes, on
+hollow verdicts); a reply without the READ line is discarded and re-run
+once. Codex needs no receipt: the brief is inlined into its prompt.
 
 Ask each leg for exactly this, and require the same of Claude's proposal:
 
@@ -164,6 +178,13 @@ defer to named authorities and to whatever sounds like the house position;
 removing labels buys an actual reconsideration. Include any crux facts
 resolved in step 3.
 
+Every CLI call is a fresh session with no memory of step 2, so each
+cross-examination prompt must carry the brief, **that leg's own step-2
+proposal labelled YOUR ORIGINAL PROPOSAL**, the two anonymized
+alternatives, and the resolved facts. Without its original, "yours" in
+the prompt below refers to nothing. Same plumbing as step 2: one prompt
+file on stdin for Codex; for Gemini, a file it reads by absolute path.
+
 > Here are two alternative approaches to the same brief, plus facts we
 > verified since. What do these alternatives account for that yours did
 > not? Would you change your recommendation, and if so, what specifically
@@ -176,7 +197,9 @@ second round produces drift, not insight.
 
 ## Step 5: the decision record
 
-Write a dated decision record (ADR) to the repo's docs directory:
+Write a dated decision record (ADR). Use the repo's existing ADR location
+if it has one; otherwise `docs/decisions/YYYY-MM-DD-<slug>.md`, and say
+where you put it. Contents:
 
 1. **The decision** and its class (from step 0).
 2. **The options**: one section each, approach, what it bets on, its
@@ -197,6 +220,9 @@ Write a dated decision record (ADR) to the repo's docs directory:
 
 Decisions rot silently. The revisit trigger is what makes the record worth
 keeping, and it is the part everyone skips.
+
+Delete the scratch files (brief, prompts, proposals) when the record is
+written, success or failure; the record is the artifact that stays.
 
 Present it to the user as a decision to rule on. **This skill does not
 decide.** Once the user picks, record their choice *and their reasoning*

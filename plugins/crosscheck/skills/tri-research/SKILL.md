@@ -9,6 +9,12 @@ The **evidence layer** for the other skills. /tri-plan, /tri-decide and
 /tri-strategy all reason over facts they assume are correct. This is the
 only one that checks them.
 
+> **Sibling skills.** `/dual-review`, `/tri-review` and the rest name the
+> other skills in this set. Installed as the plugin, invoke them as
+> `/crosscheck:<name>`; as plain copies, as `/<name>`. Either way their
+> files sit next to this one, so "see /tri-review's Notes" means
+> `../tri-review/SKILL.md` relative to this skill's base directory.
+
 ## Read this before running it
 
 The obvious design, give all three models the same question, let each go
@@ -142,15 +148,21 @@ verified at all: Codex can be given MCP servers in `~/.codex/config.toml`
 and will load them in `codex exec`, so it may be able to re-run first-party
 queries, but the audit legs in step 3 run config-isolated (`--ephemeral
 --ignore-user-config`) precisely to keep that fleet away from web-fetched
-untrusted pages, so first-party rows are Claude-only by construction unless
-you deliberately run a separate non-isolated pass for them. Check `agy mcp
-list` for the Gemini leg, if it has none, first-party rows can never be
+untrusted pages, so first-party rows are Claude-only by construction. A
+separate pass that re-derives them with MCP access is possible, but only
+with web search **off** and no fetched content in its prompt: production
+access and untrusted pages never share a session. Check `agy mcp list` for
+the Gemini leg: if it lists servers, `agy mcp disable` them for the audit
+and `agy mcp enable` them afterwards (the disable persists), because this
+leg fetches untrusted pages. With none, first-party rows can never be
 verified by it, and any row neither leg could reach is a row only Claude
 ever touched. The output says so.
 
 ## Step 2: the claim ledger
 
-ONE file (`mktemp`). A markdown table, one row per load-bearing claim:
+ONE file, in a scratch directory outside the repo (`WORK=$(mktemp -d)`,
+ledger at `$WORK/ledger.md`). A markdown table, one row per load-bearing
+claim:
 
 | ID | Claim | Value | As of | Source URL / query | How obtained + literal string |
 |---|---|---|---|---|---|
@@ -173,11 +185,20 @@ Rules, each of which exists because of a specific failure:
 The other two legs are **not** researching the question. They are trying to
 break the ledger.
 
-First **build the audit file**, the brief *and* the ledger in one file, one
-per auditor so each carries its own surface:
+First **split the ledger.** Only public-source rows go to the auditors.
+Rows sourced from billing, a production database, a support inbox, or
+anything carrying customer data stay out of both audit files (see Notes:
+auditors have web egress); they are verified by Claude alone and reported
+as `UNVERIFIED`. Then **build the audit files**, the brief *and* the
+public rows in one file, one per auditor so each carries its own surface,
+each in its own empty scratch directory, never in the repo:
 
 ```bash
-cat brief-codex.md ledger.md > audit-codex.md
+mkdir -p "$WORK/codex-cwd" "$WORK/gemini"
+# write each auditor's brief (below) to $WORK/brief-codex.md and $WORK/brief-gemini.md,
+# and the public rows only to $WORK/ledger-public.md
+cat "$WORK/brief-codex.md" "$WORK/ledger-public.md" > "$WORK/audit-codex.md"
+cat "$WORK/brief-gemini.md" "$WORK/ledger-public.md" > "$WORK/gemini/audit-gemini.md"
 ```
 
 This concatenation is not a nicety. **`codex exec -` treats stdin as its
@@ -186,21 +207,19 @@ instructions, and Codex will summarise or answer it instead of auditing it.
 The file you pipe must contain both.
 
 ```bash
-codex exec --ephemeral --ignore-user-config --skip-git-repo-check -C /path/to/empty-dir -s read-only -c tools.web_search=true -c model_reasoning_effort="high" - < audit-codex.md
+codex exec --ephemeral --ignore-user-config --skip-git-repo-check -C "$WORK/codex-cwd" -s read-only -c tools.web_search=true -c model_reasoning_effort="high" - < "$WORK/audit-codex.md"
 ```
 
 ```bash
-agy --sandbox --model <newest-gemini-on-plan> --print-timeout 12m -p "<brief, naming audit-gemini.md's absolute path to read_file>"
+agy --sandbox --model <newest-gemini-on-plan> --print-timeout 12m -p "Read $WORK/gemini/audit-gemini.md with read_file and follow the brief in it. Fetch pages with read_url_content only. Do not run commands."
 ```
 
 `-C` points Codex at an empty scratch directory (its audit arrives on
 stdin), and `--skip-git-repo-check` is required with it: a non-git
 directory otherwise trips Codex's trusted-directory check and the leg dies
 before any model call, with piped stdin it hangs rather than failing
-(verified on codex-cli 0.146). Gemini has no `-C`: write `audit-gemini.md`
-alone into a scratch directory of its own and name that absolute path, and
-add to its prompt "Fetch pages with read_url_content only. Do not run
-commands." If the leg dies on a permission error, or marks every row
+(verified on codex-cli 0.146). Gemini has no `-C`, so its audit file sits
+alone in a scratch directory of its own, named by absolute path. If the leg dies on a permission error, or marks every row
 UNVERIFIABLE, treat it as a setup failure (fix the allow rules, re-run
 once), not as an audit result. Neither scratch directory is a confidentiality
 boundary, see Notes. The brief in each file:
@@ -281,6 +300,9 @@ Rewrite the ledger with a Status column, under a short brief:
 4. **Coverage**: which surfaces were searched, which were not, and which
    rows only Claude ever touched.
 5. **Disclosure**: Claude wrote the ledger *and* judged the disputes.
+
+When the output is written, delete `$WORK` and restore the Gemini
+settings copy, success or failure.
 
 This file **is** /tri-strategy's evidence pack, or /tri-decide's verified
 crux facts, hand it over directly rather than re-deriving it. Date it

@@ -11,6 +11,12 @@ final diff. The value is adversarial and cross-vendor: both critics are
 prompted to find what the plan gets wrong, not to agree with it, and a
 point BOTH critics raise independently is near-certain to be real.
 
+> **Sibling skills.** `/dual-review`, `/tri-review` and the rest name the
+> other skills in this set. Installed as the plugin, invoke them as
+> `/crosscheck:<name>`; as plain copies, as `/<name>`. Either way their
+> files sit next to this one, so "see /tri-review's Notes" means
+> `../tri-review/SKILL.md` relative to this skill's base directory.
+
 ## Model per leg: pin all three
 
 | Leg | Model | Where it's set |
@@ -85,7 +91,8 @@ identical on every platform.
    `run_in_background: true`):
 
    ```bash
-   codex exec --ephemeral --ignore-user-config -s read-only -c model_reasoning_effort="high" - < /path/to/critique-prompt.md
+   PROMPT=$(mktemp)   # one per lens: the lens prompt below with the plan inlined
+   codex exec --ephemeral --ignore-user-config -s read-only -c model_reasoning_effort="high" - < "$PROMPT"
    ```
 
    ```bash
@@ -133,7 +140,8 @@ identical on every platform.
    > You are deciding whether to AUTHORIZE this plan to run, assume it will
    > execute unattended, against production, with the credentials the
    > operator already holds. Do NOT implement anything, do NOT edit files.
-   > You may read any file inside the repository needed to answer these.
+   > You may read the plan file and any file inside the repository needed
+   > to answer these.
    > Never open credential stores (`~/.claude.json`, `~/.codex/`,
    > `~/.gemini/`, `~/.aws/`, `~/.ssh/`, `.env*`, keychains): if an answer
    > depends on one, name the fact you needed instead. Check: (1) what
@@ -206,7 +214,8 @@ identical on every platform.
    question:** if all rounds so far have run one lens, adding a fourth
    round is worth less than running the other lens once. Do not present a
    plan to the user that either critic has not seen in its final form.
-   - If either critic still says NEEDS-CHANGES after round 3, stop looping:
+   - If either critic still says NEEDS-CHANGES or DO-NOT-AUTHORIZE after
+     round 3, stop looping:
      present the plan WITH each unresolved disagreement as a named decision
      point, who holds which position and your recommendation, and let the
      user rule. Never paper over a disagreement to fake consensus, and
@@ -224,7 +233,8 @@ identical on every platform.
    writers on one tree causes conflicts.
 
 7. **Close with /tri-review** (the sibling skill) on the finished diff
-   before any PR/merge.
+   before any PR/merge. Then delete the scratch files (plan, lens prompts,
+   critiques); the plan the user approved belongs in the PR description.
 
 ## A human who owns the resource is a third reviewer class
 
@@ -240,9 +250,10 @@ Treat their sign-off as a **gate**, not a data point, and give them the
 same lens B checklist so the ask is concrete.
 
 If such a reviewer requires a change that contradicts the written spec or
-brief, do **not** silently pick a side: implement the safer, more
-reversible option, define exactly one behaviour so an unattended run is
-never ambiguous, and escalate the conflict to whoever owns the brief.
+brief, do **not** silently pick a side: revise the plan to the safer,
+more reversible option, define exactly one behaviour so an unattended run
+is never ambiguous, and escalate the conflict to whoever owns the brief.
+Nothing is implemented until the user approves the revised plan (step 5).
 
 ## Review the artifact that will actually execute
 

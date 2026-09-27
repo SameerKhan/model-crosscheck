@@ -5,6 +5,43 @@ Dates are commit dates. Every entry since 1.2.1 was itself reviewed with
 `/tri-review` before it shipped; the findings that changed the release are
 noted where they mattered.
 
+## 2.8.0 (2026-09-27)
+
+Second audit pass: Codex and Gemini each walked every skill as an agent
+executing it literally (81 raw findings, deduplicated, each checked against
+the text; one rejected by test: `git worktree add` into a fresh `mktemp -d`
+directory works).
+
+- **`/tri-decide` and `/tri-strategy` now send Codex its instructions.**
+  Both piped the bare brief or evidence pack to `codex exec -`, which takes
+  stdin as its whole prompt, so the ask, the lens, and the MISSING FACT rule
+  never arrived. Same bug class `/tri-research` fixed in 2.4.0.
+- **Cross-examination carries each leg's own earlier answer.** Every CLI
+  call is a fresh session, so "what do these account for that yours did
+  not?" referred to nothing.
+- **`/tri-research` splits the ledger before auditing.** Step 3 sent the
+  whole ledger to web-enabled auditors while its Notes forbade first-party
+  rows there. Scratch paths are now real (`$WORK`), outside the repo; the
+  Gemini leg's MCP servers are disabled for the audit.
+- **`/tri-review` never touches the real index.** Untracked files are
+  marked in a throwaway index copy (`GIT_INDEX_FILE`), replacing 2.7.0's
+  add/reset pair, so an interrupted run cannot leave staging changed. It
+  stops on an empty patch and on untracked secret-looking files.
+- **The operations pass says who runs it and how**: plain `codex exec` with
+  the patch inlined (`review` cannot take a custom prompt with a scope).
+- **Reviews no longer grant shell network**; running a diff's code for the
+  state-machine check happens only in a disposable, credential-free place.
+- `/tri-plan`: the round cap covers DO-NOT-AUTHORIZE too; a human
+  reviewer's conflicting requirement revises the plan and waits for
+  approval instead of being implemented; Lens B may read the plan file.
+- `/dual-plan` co-coder commits to the branch the feature started on and
+  removes its worktree.
+- Every skill deletes its scratch files, says where sibling skills live
+  under a plugin install, and has a fallback if `/code-review` is absent;
+  the receipt schema path is the skill's base directory, not `/path/to/`.
+- `/tri-strategy` minimizes the evidence pack before it leaves the machine
+  and no longer claims `/tri-research` checks first-party numbers.
+
 ## 2.7.0 (2026-09-27)
 
 - **Every `codex exec` closes stdin (`< /dev/null`).** `codex exec` waits
