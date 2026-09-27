@@ -261,9 +261,10 @@ you point these skills at something sensitive.
 - **Your MCP servers stay home, on the Codex side.** The Codex legs run
   with `--ignore-user-config`, so databases, billing, or mail wired into
   `~/.codex/config.toml` never start next to untrusted input. Gemini has no
-  such flag: run `agy mcp list`, and if it lists anything, disable it for
-  the run (`agy mcp disable <name>`) and re-enable it afterwards
-  (`agy mcp enable <name>`); the disable persists across sessions.
+  such flag: run `agy mcp list`, disable the servers that are enabled for
+  the run (`agy mcp disable <name>`), and re-enable exactly those
+  afterwards (`agy mcp enable <name>`); the disable persists across
+  sessions.
 
 ## Prerequisites
 

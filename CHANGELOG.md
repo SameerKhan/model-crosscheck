@@ -41,6 +41,12 @@ directory works).
   the receipt schema path is the skill's base directory, not `/path/to/`.
 - `/tri-strategy` minimizes the evidence pack before it leaves the machine
   and no longer claims `/tri-research` checks first-party numbers.
+- From this release's own review (Codex + Gemini, all 4 accepted): the
+  operations-pass command now creates its prompt files (both legs caught
+  it); the temp-index `git add` has no pathspec, so running from a
+  subdirectory still catches untracked files repo-wide; the ledger receipt
+  quotes the first retained public row; MCP servers are restored to their
+  prior state, not all enabled.
 
 ## 2.7.0 (2026-09-27)
 

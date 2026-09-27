@@ -45,9 +45,10 @@ config-isolated (`--ephemeral --ignore-user-config`), so a
 `~/.codex/config.toml` that wires billing or database MCP servers stays out
 of the run. The Gemini side has no such flag, `--sandbox` restricts the
 terminal, not MCP tools, so run `agy mcp list` first: if it shows an
-enabled server, `agy mcp disable <name>` for the run and `agy mcp enable
-<name>` afterwards, success or failure (the disable persists across
-sessions), or do not make the
+enabled server, `agy mcp disable` exactly the enabled ones for the run
+and `agy mcp enable` exactly those afterwards, success or failure (the
+disable persists across sessions; servers already disabled stay that
+way), or do not make the
 pack-only claim. Only then is the pack the only business data the legs are
 handed. It is not a read boundary: both sandboxes block writes, not reads
 of local files, so keep business exports out of the repo tree too. If a

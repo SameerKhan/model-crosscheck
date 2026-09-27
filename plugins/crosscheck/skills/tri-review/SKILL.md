@@ -93,14 +93,16 @@ merge logic) is identical on every platform.
      ```bash
      TMPIDX=$(mktemp); PATCH=$(mktemp)
      cp "$(git rev-parse --git-path index)" "$TMPIDX"
-     GIT_INDEX_FILE="$TMPIDX" git add --intent-to-add --all -- .
+     GIT_INDEX_FILE="$TMPIDX" git add --intent-to-add --all   # no pathspec: whole repo, from any subdirectory
      GIT_INDEX_FILE="$TMPIDX" git diff HEAD > "$PATCH"
      rm -f "$TMPIDX"
-     git ls-files --others --exclude-standard   # the untracked files now in the patch
+     git -C "$(git rev-parse --show-toplevel)" ls-files --others --exclude-standard   # the untracked files now in the patch
      ```
 
      (Verified on git 2.54: the patch carries tracked, staged and untracked
-     changes; the real index is byte-for-byte unchanged. Do not use
+     changes; the real index is byte-for-byte unchanged. A `-- .` pathspec
+     would miss untracked files outside the current subdirectory.)
+     (Also: do not use
      `git add -N` on the real index and `git reset` afterwards: a bare
      reset unstages the user's work, and so does
      `git reset --pathspec-from-file` with an empty list.)
@@ -181,12 +183,17 @@ merge logic) is identical on every platform.
    alongside the bug review: same patch, separate prompt (below), run on
    both external legs. Codex's `review` subcommand cannot take a custom
    prompt with a scope flag, so this pass uses plain `codex exec` with the
-   prompt and the patch inlined: `cat ops-prompt.md "$PATCH" >
-   "$OPS"; codex exec --ephemeral --ignore-user-config -s read-only -c
-   model_reasoning_effort="high" - < "$OPS"`. Gemini gets the same prompt
-   via `agy --sandbox ... -p`, naming `$PATCH` by absolute path, with the
-   INSPECTED receipt from step 3. Delete `$OPS` with the other temp files.
-   The prompt:
+   prompt and the patch inlined:
+
+   ```bash
+   OPS_PROMPT=$(mktemp); OPS=$(mktemp)   # write the prompt below into "$OPS_PROMPT"
+   cat "$OPS_PROMPT" "$PATCH" > "$OPS"
+   codex exec --ephemeral --ignore-user-config -s read-only -c model_reasoning_effort="high" - < "$OPS"
+   ```
+
+   Gemini gets the same prompt via `agy --sandbox ... -p`, naming `$PATCH`
+   by absolute path, with the INSPECTED receipt from step 3. Delete
+   `$OPS_PROMPT` and `$OPS` with the other temp files. The prompt:
 
    > Assume this will run unattended, in production, with the credentials
    > the operator already holds. What privileges does it need, and are they

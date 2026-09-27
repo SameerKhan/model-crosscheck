@@ -152,9 +152,11 @@ untrusted pages, so first-party rows are Claude-only by construction. A
 separate pass that re-derives them with MCP access is possible, but only
 with web search **off** and no fetched content in its prompt: production
 access and untrusted pages never share a session. Check `agy mcp list` for
-the Gemini leg: if it lists servers, `agy mcp disable` them for the audit
-and `agy mcp enable` them afterwards (the disable persists), because this
-leg fetches untrusted pages. With none, first-party rows can never be
+the Gemini leg: note which servers are currently **enabled**, `agy mcp
+disable` exactly those for the audit, and `agy mcp enable` exactly those
+afterwards, success or failure (the disable persists across sessions; a
+server the user had already disabled stays disabled). This leg fetches
+untrusted pages. With none, first-party rows can never be
 verified by it, and any row neither leg could reach is a row only Claude
 ever touched. The output says so.
 
@@ -191,7 +193,8 @@ anything carrying customer data stay out of both audit files (see Notes:
 auditors have web egress); they are verified by Claude alone and reported
 as `UNVERIFIED`. Then **build the audit files**, the brief *and* the
 public rows in one file, one per auditor so each carries its own surface,
-each in its own empty scratch directory, never in the repo:
+each in its own empty scratch directory, never in the repo. If no public
+rows remain, skip step 3 and say the whole ledger is Claude-only:
 
 ```bash
 mkdir -p "$WORK/codex-cwd" "$WORK/gemini"
@@ -224,9 +227,9 @@ UNVERIFIABLE, treat it as a setup failure (fix the allow rules, re-run
 once), not as an audit result. Neither scratch directory is a confidentiality
 boundary, see Notes. The brief in each file:
 
-> Attached is a claim ledger. Begin your reply with one line: READ: <row
-> R1's Claim column, verbatim>, or FILE-NOT-READ if you could not open the
-> file. For EVERY row: re-fetch the named source
+> Attached is a claim ledger. Begin your reply with one line: READ: <the
+> first row's Claim column, verbatim>, or FILE-NOT-READ if you could not
+> open the file. For EVERY row: re-fetch the named source
 > yourself and return **CONFIRMED / CORRECTED / UNVERIFIABLE**, with (a) the
 > literal string you found, (b) the URL you actually fetched, (c) the date.
 >
