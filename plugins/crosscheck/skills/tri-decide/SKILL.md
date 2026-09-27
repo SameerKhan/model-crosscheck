@@ -33,19 +33,19 @@ that does not exist.
 
 | Leg | Model | Where it's set |
 |---|---|---|
-| **Claude** (proposal, crux resolution, adjudication, the record) | the current release of a top-tier Claude family (2026-09: Fable 5.1 or Opus 5.5) | the session model, see below |
+| **Claude** (proposal, crux resolution, adjudication, the record) | the newest available release of a top-tier Claude family (2026-09: Fable 5.1 or Opus 5.5) | the session model, see below |
 | Codex proposer | the CLI's default under config isolation, read the `model:` line Codex prints at startup; `-c model=...` to override | `--ephemeral --ignore-user-config -s read-only`, effort forced to `high` |
 | Gemini proposer | the newest Gemini on the plan (2026-09: `gemini-3.8-flash-high`, a floor, not a pin) | `--model` on every `agy` call |
 
 Claude drafts an option, resolves the cruxes, judges the comparison, and
 writes the record, more load-bearing here than in any sibling skill. Check
 the active model (stated in the session's environment context; the user can
-confirm with `/status`) **before step 0**. The current release of a
-top-tier family (Fable/Opus-class; 2026-09: Fable 5.1 or Opus 5.5) passes;
-the dated examples are a **floor, not an exact match**, so a later release
-also passes, and a `[1m]` context-window suffix is the same model. Stop
-only for a fast/cheap tier (Haiku/Sonnet-class) or a superseded top-tier
-release (Fable 5 once 5.1 exists, Opus 5 once 5.5 exists): say which model
+confirm with `/status`) **before step 0**. The newest release
+available to you of a top-tier family passes (Fable/Opus-class; as of
+2026-09, Fable 5.1 or Opus 5.5; the names date, the rule does not), and a
+`[1m]` context-window suffix is the same model. Stop only for a fast/cheap
+tier (Haiku/Sonnet-class) or a top-tier release whose family has a newer
+one available (as of 2026-09, Fable 5 or Opus 5): say which model
 the Claude leg would run on and ask the user to switch (`/model` lists the
 options) rather than spending two CLIs on a weak proposal. If you genuinely
 can't classify the session model, name it and ask. Pin any subagent this

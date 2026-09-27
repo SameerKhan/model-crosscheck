@@ -62,7 +62,7 @@ failure point across these skills, and this is the skill that reviews it.
 
 | Leg | Model | Where it's set |
 |---|---|---|
-| **Claude** (ledger, resolution, output) | the current release of a top-tier Claude family (2026-09: Fable 5.1 or Opus 5.5) | the session model, check before step 0 |
+| **Claude** (ledger, resolution, output) | the newest available release of a top-tier Claude family (2026-09: Fable 5.1 or Opus 5.5) | the session model, check before step 0 |
 | Codex | the CLI's default under config isolation, read the `model:` line Codex prints at startup; `-c model=...` to override | `--ephemeral --ignore-user-config -s read-only`, effort forced `high`, **web search enabled** |
 | Gemini | the newest Gemini on the plan (2026-09: `gemini-3.8-flash-high`, a floor, not a pin) | `--model` on every `agy` call; **web fetch needs per-domain allow rules**, see below |
 
@@ -73,20 +73,23 @@ only, and exec exits 2 with "unexpected argument". The working form is
 because the tool is server-side rather than shell egress. `agy` needs no
 flag, and its `read_url_content` tool works under `--sandbox`, **but
 headless mode auto-denies it unless the URL is allowlisted**: the leg dies
-with "a tool required the read_url permission". Before step 3, add one
-rule per domain the ledger cites to `permissions.allow` in
-`~/.gemini/antigravity-cli/settings.json`, in the form
-`read_url(https://buffer.com/*)`. Scope each rule to a domain; never add
+with "a tool required the read_url permission". Before step 3, copy
+`~/.gemini/antigravity-cli/settings.json` aside, then add one rule per
+domain the ledger cites to its `permissions.allow`, in the form
+`read_url(https://buffer.com/*)`. Restore the copy when the audit ends,
+success or failure: headless mode auto-approves whatever is listed, so a
+grant left behind is standing web access for every later headless run.
+Scope each rule to a domain; never add
 `command(curl)` or any other shell egress to "unblock" the leg (a denied
 fetch has been seen to fall back to trying `curl`), and never use
 `--dangerously-skip-permissions`.
 
-If the session is not on the current release of a top-tier Claude family
-(Fable/Opus-class; 2026-09: Fable 5.1 or Opus 5.5; the dated examples are
-a floor, so a later release also passes, and a `[1m]` suffix is the same
-model), say so and ask the user to switch before step 0. Stop only for a
-fast/cheap tier (Haiku/Sonnet-class) or a superseded top-tier release
-(Fable 5 once 5.1 exists, Opus 5 once 5.5 exists); if you genuinely can't
+If the session is not on the newest release available to you of a top-tier
+Claude family (Fable/Opus-class; as of 2026-09, Fable 5.1 or Opus 5.5; the
+names date, the rule does not; a `[1m]` suffix is the same model), say so
+and ask the user to switch before step 0. Stop only for a fast/cheap tier
+(Haiku/Sonnet-class) or a top-tier release whose family has a newer one
+available (as of 2026-09, Fable 5 or Opus 5); if you genuinely can't
 classify the session model, name it and ask. Pin any subagent this skill
 spawns to the same tier explicitly (`model`, not just `subagent_type`).
 

@@ -13,7 +13,7 @@ finding is real; disagreement tells the user exactly where to look manually.
 
 | Leg | Model | Where it's set |
 |---|---|---|
-| **Claude** (verification + merge; see step 4 re `/code-review`) | the current release of a top-tier Claude family (2026-09: Fable 5.1 or Opus 5.5) | the session model, see below |
+| **Claude** (verification + merge; see step 4 re `/code-review`) | the newest available release of a top-tier Claude family (2026-09: Fable 5.1 or Opus 5.5) | the session model, see below |
 | Codex | the CLI's default under config isolation, read the `model:` line Codex prints at startup; `-c model=...` to override | `--ephemeral --ignore-user-config -s read-only`, effort forced to `high` |
 | Gemini | the newest Gemini on the plan (2026-09: `gemini-3.8-flash-high`, a floor, not a pin) | `--model` on every `agy` call |
 
@@ -32,12 +32,13 @@ Claude cannot switch its own main-loop model, so **check before starting**.
 The active model is stated in the session's environment context (the user can
 also confirm with `/status`).
 
-- On the current release of a top-tier family (Fable/Opus-class; 2026-09:
-  Fable 5.1 or Opus 5.5) → proceed. A later release also passes, and a
-  `[1m]` context-window suffix on the model id is the same model.
-- On a fast/cheap tier (Haiku/Sonnet-class), or a superseded top-tier
-  release (Fable 5 once 5.1 exists, Opus 5 once 5.5 exists) → **stop
-  before step 1**, say which model the Claude leg would
+- On the newest release available to you of a top-tier family
+  (Fable/Opus-class; as of 2026-09, Fable 5.1 or Opus 5.5; the names date,
+  the rule does not) → proceed. A `[1m]` context-window suffix on the model
+  id is the same model.
+- On a fast/cheap tier (Haiku/Sonnet-class), or a top-tier release whose
+  family has a newer one available (as of 2026-09, Fable 5 or Opus 5) →
+  **stop before step 1**, say which model the Claude leg would
   run on, and ask the user to switch (`/model` lists what the plan offers,
   pick the newest top-tier Claude) and re-invoke. Don't quietly run a
   "triple review" with a downgraded Claude seat. If you genuinely can't
@@ -78,16 +79,22 @@ merge logic) is identical on every platform.
    - Only uncommitted working-tree changes: Codex flag = `--uncommitted`,
      and review the working-tree diff on the Claude and Gemini sides.
      Newly created untracked files are missing from `git diff HEAD`, so two
-     of the three reviewers would silently never see them. Mark exactly
-     those files intent-to-add, and afterwards reset exactly those files:
+     of the three reviewers would silently never see them. This block
+     replaces step 2's patch write for this scope: it marks exactly those
+     files intent-to-add, writes the patch, and resets exactly those files,
+     in that order.
 
      ```bash
-     NEW=$(mktemp)
+     NEW=$(mktemp); PATCH=$(mktemp)
      git ls-files -z --others --exclude-standard > "$NEW"
      [ -s "$NEW" ] && git add --intent-to-add --pathspec-from-file="$NEW" --pathspec-file-nul
-     # ... write the patch (step 2) ...
+     git diff HEAD > "$PATCH"
      [ -s "$NEW" ] && git reset -q --pathspec-from-file="$NEW" --pathspec-file-nul
      ```
+
+     Claude's `/code-review` in step 4 runs after the reset, so it will not
+     see the untracked files in `git diff HEAD`; review them from the patch
+     file (or the `$NEW` list) on the Claude side.
 
      Both guards matter. A bare `git reset` afterwards would unstage
      everything the user had deliberately staged, and so does
@@ -106,12 +113,14 @@ merge logic) is identical on every platform.
    ```bash
    PATCH=$(mktemp)
    git diff origin/<trunk>...HEAD > "$PATCH"
-   # or: git diff HEAD > "$PATCH" for uncommitted scope
+   # uncommitted scope: already written by step 1's block
    ```
 
    Use a unique temp file (`mktemp`), not a fixed path, a fixed name
-   collides with a concurrent review and is world-predictable. Delete it
-   when the review is done. Plain `mktemp` with no template is the portable
+   collides with a concurrent review and is world-predictable. When the
+   review is done, success or failure, delete every temp file this skill
+   made: `rm -f "$PATCH" "$NEW" "$OUT" "$ERR"`. They hold the diff and the
+   reviews, and `--ephemeral` only covers Codex's own session files. Plain `mktemp` with no template is the portable
    form: BSD/macOS `mktemp -t foo.XXXXXX` treats the argument as a *prefix*
    and appends its own suffix, so the literal `XXXXXX` survives in the
    filename. The extension doesn't matter, Gemini reads the file by path.

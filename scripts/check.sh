@@ -39,7 +39,7 @@ files = [f for f in sorted(pathlib.Path(".").rglob("*"))
          if f.is_file() and ".git" not in f.parts
          and f.suffix in {".md", ".sh", ".json", ".yml", ".yaml"}]
 hits = [f"{f}:{n}" for f in files
-        for n, line in enumerate(f.read_text().splitlines(), 1) if chr(0x2014) in line]
+        for n, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1) if chr(0x2014) in line]
 if hits: print("\n".join(hits[:5]))
 sys.exit(1 if hits else 0)
 PY

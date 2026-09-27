@@ -262,7 +262,8 @@ you point these skills at something sensitive.
   with `--ignore-user-config`, so databases, billing, or mail wired into
   `~/.codex/config.toml` never start next to untrusted input. Gemini has no
   such flag: run `agy mcp list`, and if it lists anything, disable it for
-  the run (`agy mcp disable <name>`).
+  the run (`agy mcp disable <name>`) and re-enable it afterwards
+  (`agy mcp enable <name>`); the disable persists across sessions.
 
 ## Prerequisites
 

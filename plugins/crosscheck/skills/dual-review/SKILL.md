@@ -13,17 +13,18 @@ disagreement tells the user where to look manually.
 
 | Leg | Model | Where it's set |
 |---|---|---|
-| **Claude** (verification + merge) | the current release of a top-tier Claude family (2026-09: Fable 5.1 or Opus 5.5) | the session model, see below |
+| **Claude** (verification + merge) | the newest available release of a top-tier Claude family (2026-09: Fable 5.1 or Opus 5.5) | the session model, see below |
 | Codex | the CLI's default under config isolation, read the `model:` line Codex prints at startup; `-c model=...` to override | `--ephemeral --ignore-user-config -s read-only`, effort forced to `high` |
 
 The Claude leg holds the repo context, verifies Codex's findings, and writes
 the merge, so it must not be the cheap seat. Check the active model (stated
 in the session's environment context; `/status` confirms it) before step 1.
-On the current release of a top-tier family (Fable/Opus-class; the dated
-examples are a floor, so a later release also passes, and a `[1m]`
-context-window suffix is the same model): proceed. On a fast/cheap tier
-(Haiku/Sonnet-class), or a superseded top-tier release (Fable 5 once 5.1
-exists, Opus 5 once 5.5 exists): stop, say which model the Claude leg would
+On the newest release available to you of a top-tier family
+(Fable/Opus-class; as of 2026-09, Fable 5.1 or Opus 5.5; the names date,
+the rule does not; a `[1m]` context-window suffix is the same model):
+proceed. On a fast/cheap tier (Haiku/Sonnet-class), or a top-tier release
+whose family has a newer one available (as of 2026-09, Fable 5 or Opus 5):
+stop, say which model the Claude leg would
 run on, and ask the user to switch via `/model` and re-invoke. Pin any
 subagent explicitly: `subagent_type` (Agent tool) or `agentType` (Workflow
 scripts) without `model` inherits that agent definition's own model.
@@ -60,7 +61,10 @@ scripts) without `model` inherits that agent definition's own model.
    stays open hangs forever at 0% CPU with "Reading additional input from
    stdin..." as its only output (measured on codex-cli 0.146: 51 s with a
    pipe held open for 45 s, 5 s with `< /dev/null`). `-o` writes the final
-   review to its own file; the model name Codex runs on is in `$ERR`. Always
+   review to its own file; the model name Codex runs on is in `$ERR`.
+   Delete both when the review is done, success or failure
+   (`rm -f "$OUT" "$ERR"`): they hold the review and log excerpts, and
+   `--ephemeral` only covers Codex's own session files. Always
    pass
    `-s read-only`, the user's `~/.codex/config.toml` may default to a
    write-enabled sandbox, and a reviewer must never touch the tree. Always

@@ -14,17 +14,18 @@ agree with it.
 
 | Leg | Model | Where it's set |
 |---|---|---|
-| **Claude** (plan draft, adjudication, implementation) | the current release of a top-tier Claude family (2026-09: Fable 5.1 or Opus 5.5) | the session model, see below |
+| **Claude** (plan draft, adjudication, implementation) | the newest available release of a top-tier Claude family (2026-09: Fable 5.1 or Opus 5.5) | the session model, see below |
 | Codex critic | the CLI's default under config isolation, read the `model:` line Codex prints at startup; `-c model=...` to override | `--ephemeral --ignore-user-config -s read-only`, effort forced to `high` |
 
 Claude drafts the plan and rules on the critique, the critic only ever
 reacts to what Claude produced, so a weak draft caps the whole run. Check the
 active model (stated in the session's environment context; `/status`
-confirms it) before step 1. On the current release of a top-tier family
-(Fable/Opus-class; the dated examples are a floor, so a later release also
-passes, and a `[1m]` context-window suffix is the same model): proceed. On
-a fast/cheap tier (Haiku/Sonnet-class), or a superseded top-tier release
-(Fable 5 once 5.1 exists, Opus 5 once 5.5 exists): stop, say which model
+confirms it) before step 1. On the newest release available to you of a top-tier family
+(Fable/Opus-class; as of 2026-09, Fable 5.1 or Opus 5.5; the names date,
+the rule does not; a `[1m]` context-window suffix is the same model):
+proceed. On a fast/cheap tier (Haiku/Sonnet-class), or a top-tier release
+whose family has a newer one available (as of 2026-09, Fable 5 or Opus 5):
+stop, say which model
 the Claude leg would run on, and ask the user to switch via `/model` and
 re-invoke. Pin any subagent explicitly: `subagent_type` (Agent tool) or
 `agentType` (Workflow scripts) without `model` inherits that agent

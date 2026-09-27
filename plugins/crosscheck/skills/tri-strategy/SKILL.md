@@ -39,7 +39,9 @@ config-isolated (`--ephemeral --ignore-user-config`), so a
 `~/.codex/config.toml` that wires billing or database MCP servers stays out
 of the run. The Gemini side has no such flag, `--sandbox` restricts the
 terminal, not MCP tools, so run `agy mcp list` first: if it shows an
-enabled server, `agy mcp disable <name>` for the run, or do not make the
+enabled server, `agy mcp disable <name>` for the run and `agy mcp enable
+<name>` afterwards, success or failure (the disable persists across
+sessions), or do not make the
 pack-only claim. Only then do the legs see the pack and only the pack. If a
 first-party number needs a second
 model's re-derivation, that is /tri-research's job under its confidentiality
@@ -57,19 +59,19 @@ numerically.
 
 | Leg | Model | Where it's set |
 |---|---|---|
-| **Claude** (evidence pack, one lens, crux resolution, the memo) | the current release of a top-tier Claude family (2026-09: Fable 5.1 or Opus 5.5) | the session model, check before step 0 |
+| **Claude** (evidence pack, one lens, crux resolution, the memo) | the newest available release of a top-tier Claude family (2026-09: Fable 5.1 or Opus 5.5) | the session model, check before step 0 |
 | Codex | the CLI's default under config isolation, read the `model:` line Codex prints at startup; `-c model=...` to override | `--ephemeral --ignore-user-config -s read-only`, effort forced to `high` |
 | Gemini | the newest Gemini on the plan (2026-09: `gemini-3.8-flash-high`, a floor, not a pin) | `--model` on every `agy` call |
 
 Claude assembles the evidence, argues a lens, resolves the cruxes, and
 writes the memo, more load-bearing than in any sibling skill, which is
 also why the conflict of interest below must be stated out loud. If the
-session is not on the current release of a top-tier Claude family
-(Fable/Opus-class; 2026-09: Fable 5.1 or Opus 5.5; the dated examples are
-a floor, so a later release also passes, and a `[1m]` suffix is the same
-model), say so and ask the user to switch before step 0. Stop only for a
-fast/cheap tier (Haiku/Sonnet-class) or a superseded top-tier release
-(Fable 5 once 5.1 exists, Opus 5 once 5.5 exists); if you genuinely can't
+session is not on the newest release available to you of a top-tier
+Claude family (Fable/Opus-class; as of 2026-09, Fable 5.1 or Opus 5.5; the
+names date, the rule does not; a `[1m]` suffix is the same model), say so
+and ask the user to switch before step 0. Stop only for a fast/cheap tier
+(Haiku/Sonnet-class) or a top-tier release whose family has a newer one
+available (as of 2026-09, Fable 5 or Opus 5); if you genuinely can't
 classify the session model, name it and ask. Pin any subagent this skill
 spawns to the same tier explicitly (`model`, not just `subagent_type`).
 

@@ -15,15 +15,17 @@ noted where they mattered.
   and rebuttal) and the `/dual-plan` co-coder, which also gains the
   config-isolation flags. Review legs write the final review with `-o`.
 - **Model gate is decidable again.** "At least as new as Fable 5.1" could
-  not rank Opus 5.5. The gate now passes the current release of a top-tier
-  family (2026-09: Fable 5.1 or Opus 5.5) and stops on fast tiers or
-  superseded releases.
+  not rank Opus 5.5. The gate now passes the newest release available of
+  a top-tier family (2026-09: Fable 5.1 or Opus 5.5) and stops on fast
+  tiers or on a release whose family has a newer one available.
 - **`/tri-review` no longer unstages your work.** The uncommitted-scope
   step marked every untracked file intent-to-add and then said to undo
   with a bare `git reset`, which unstaged everything. It now adds and
   resets exactly the untracked files, guarded against an empty list (an
   empty `--pathspec-from-file` also resets the whole index; verified on
-  git 2.54).
+  git 2.54). The patch is written inside the same block, before the
+  reset; the first draft reset first and would have dropped the files
+  (caught by this release's own review).
 - **Critics are told to stay out of credential stores.** `/tri-plan` Lens B
   said "you may read any file needed", and in a real run a Gemini critic
   opened `~/.claude.json`. Lens B and `/tri-review`'s operations pass now
@@ -32,6 +34,10 @@ noted where they mattered.
   `read_url_content` unless the domain is allowlisted, which killed the
   leg; the skill now says to add per-domain `read_url(...)` rules and never
   to allowlist `curl` instead.
+- **Nothing is left behind.** Temp files (patch, untracked list, Codex
+  output) are deleted after success or failure; `/tri-research`'s Gemini
+  URL grants are restored from a copy after the audit, and `/tri-strategy`
+  re-enables any `agy` MCP server it disabled (`agy mcp disable` persists).
 - `/tri-review` notes: `codex exec review` accepts a custom prompt only
   without `--base`/`--uncommitted`, and silently ignores `--output-schema`
   (both verified).

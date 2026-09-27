@@ -15,7 +15,7 @@ point BOTH critics raise independently is near-certain to be real.
 
 | Leg | Model | Where it's set |
 |---|---|---|
-| **Claude** (plan draft, adjudication, implementation) | the current release of a top-tier Claude family (2026-09: Fable 5.1 or Opus 5.5) | the session model, see below |
+| **Claude** (plan draft, adjudication, implementation) | the newest available release of a top-tier Claude family (2026-09: Fable 5.1 or Opus 5.5) | the session model, see below |
 | Codex critic | the CLI's default under config isolation, read the `model:` line Codex prints at startup; `-c model=...` to override | `--ephemeral --ignore-user-config -s read-only`, effort forced to `high` |
 | Gemini critic | the newest Gemini on the plan (2026-09: `gemini-3.8-flash-high`, a floor, not a pin) | `--model` on every `agy` call |
 
@@ -34,12 +34,13 @@ Claude cannot switch its own main-loop model, so **check before starting**.
 The active model is stated in the session's environment context (the user can
 also confirm with `/status`).
 
-- On the current release of a top-tier family (Fable/Opus-class; 2026-09:
-  Fable 5.1 or Opus 5.5) → proceed. A later release also passes, and a
-  `[1m]` context-window suffix on the model id is the same model.
-- On a fast/cheap tier (Haiku/Sonnet-class), or a superseded top-tier
-  release (Fable 5 once 5.1 exists, Opus 5 once 5.5 exists) → **stop
-  before step 1**, say which model the Claude leg would
+- On the newest release available to you of a top-tier family
+  (Fable/Opus-class; as of 2026-09, Fable 5.1 or Opus 5.5; the names date,
+  the rule does not) → proceed. A `[1m]` context-window suffix on the model
+  id is the same model.
+- On a fast/cheap tier (Haiku/Sonnet-class), or a top-tier release whose
+  family has a newer one available (as of 2026-09, Fable 5 or Opus 5) →
+  **stop before step 1**, say which model the Claude leg would
   run on, and ask the user to switch (`/model` lists what the plan offers,
   pick the newest top-tier Claude) and re-invoke. Don't draft on a
   downgraded model and then spend two critic CLIs on it. If you genuinely
