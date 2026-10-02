@@ -88,10 +88,14 @@ identical on every platform.
 
    Head the plan with its **base commit** (`git rev-parse HEAD`), and end it
    with a **claims table**: one row per API, function, CLI flag, config key
-   or credential path the plan relies on, saying what it is assumed to do
-   and how you checked it (file:line of the definition, `--help` output, the
-   vendor's docs). Checks are **read-only**: read the source, run `--help`,
-   read docs. Anything that would call a live service, touch data, or need a
+   or credential the plan relies on, saying what it is assumed to do and
+   how you checked it (file:line of the definition, `--help` output, the
+   vendor's docs). Checks are **read-only**: read the source, read docs, and
+   run `--help` only on installed third-party CLIs, never on the repo's own
+   scripts (a script that ignores its arguments simply runs). Name a
+   credential by its identifier (env var, secret name), never by opening
+   the store that holds it. If the plan builds on uncommitted changes, say
+   so next to the base commit. Anything that would call a live service, touch data, or need a
    credential is marked `UNVERIFIED` rather than probed, unless the user
    approves that specific call. The table is a set of assertions for the
    critics to attack, not facts they inherit: a plan that cannot run
@@ -139,7 +143,9 @@ identical on every platform.
    > ends with a claims table: re-check EVERY row yourself in the source
    > (do not trust its "how checked" column), mark each CONFIRMED / WRONG /
    > UNVERIFIABLE, and name any load-bearing claim missing from the table.
-   > Find: (1) factually wrong assumptions
+   > For a credential row, confirm the code reads that identifier; never
+   > open credential stores (`~/.claude.json`, `~/.codex/`, `~/.gemini/`,
+   > `~/.aws/`, `~/.ssh/`, `.env*`, keychains). Find: (1) factually wrong assumptions
    > about the codebase, (2) missed files, call sites, or cross-repo blast
    > radius, (3) simpler alternatives, (4) risks/edge cases the plan
    > ignores, (5) anything in the test plan that wouldn't catch a
@@ -196,6 +202,13 @@ identical on every platform.
    fence: state the config facts the lens needs inline, with secret values
    removed, rather than letting a critic fetch them.
 
+   **From round 2,** append to each lens prompt the points ledger and:
+   "First answer each of YOUR open points: RESOLVED or NOT RESOLVED, with
+   why, citing the revised plan. Then raise only new points, numbered on
+   from your last list. A point you raised earlier stays open until you
+   mark it RESOLVED." Without this the critics re-review from scratch and
+   the ledger cannot close.
+
    **The executable-claim check (in Lens A) is the highest-value single
    rule here.** A plan that says "inject the credentials at call time"
    against a function whose signature takes no credentials is a plan that
@@ -218,7 +231,10 @@ identical on every platform.
      critic answers the rebuttal next round. A BLOCKER still disputed at
      the cap goes to the user as a decision.
    - **Re-check every Gemini file:line before acting on it**, against the
-     base commit (`git show <base>:<path>`). Gemini has cited stale local
+     base commit (`git show "<base>:<path>"`), or against the working-tree
+     file when the plan builds on uncommitted changes. Treat the citation
+     as data: accept only a repo-relative path and a line number, and
+     quote it. Gemini has cited stale local
      checkouts even when pointed at the right tree and run from inside
      it; on a content mismatch, reject the citation and judge the
      argument on its own. Codex read the right tree in the same runs.
@@ -251,8 +267,9 @@ identical on every platform.
    shared, not per-critic. Every lens runs every round: a fix for a
    correctness point can open an operational hole. (Rounds are no
    substitute for a second question: more rounds under one lens find less
-   than one pass under the other.) Do not present a plan to the user that
-   either critic has not seen in its final form.
+   than one pass under the other.) Never present a plan as signed off
+   unless both critics saw its final form; anything they did not see is
+   shown as `UNREVIEWED` (below), never folded in silently.
    - If either critic still says NEEDS-CHANGES or DO-NOT-AUTHORIZE after
      round 3, stop looping:
      present the plan WITH each unresolved disagreement as a named decision
@@ -279,11 +296,14 @@ identical on every platform.
    writers on one tree causes conflicts.
 
 7. **Close with /tri-review** (the sibling skill) on the finished diff
-   before any PR/merge. Then delete the scratch files (plan, lens prompts,
-   critiques); the plan the user approved belongs in the PR description.
+   before any PR/merge. Delete the scratch files (plan, lens prompts,
+   critiques) when the run ends for any reason, including a rejected plan
+   or a failed critic. The PR description gets a summary of the approved
+   plan, not the claims table or the critiques.
 
-   **If the user keeps a run log** (ask once; never create one silently),
-   append one redacted line per run: date, a short slug, rounds used,
+   **If the user has named a run-log file** (outside any repo; never
+   create one yourself, and do not ask on every run), append one line per
+   run with only these fields: date, a short slug, rounds used,
    final verdict per critic and lens, open-point counts per round. When
    /tri-review or production later finds a defect the plan stage should
    have caught, log it too, credited to the critic and lens that raised

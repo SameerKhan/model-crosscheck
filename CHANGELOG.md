@@ -35,6 +35,18 @@ early) were cut because they would have weakened the final-plan guarantee.
 - The approval summary gains a per-round table of open points per critic
   and lens. An optional, redacted run log records hits and misses
   (`MISSED-BY-ALL`), so the cost of each critic and lens can be measured.
+- From this release's own /tri-review (Claude, Codex review + operations
+  pass, Gemini; 18 findings, 2 rejected and conceded on rebuttal):
+  critics are now told how to answer the ledger from round 2 (without it
+  they re-review from scratch); "never present an unseen plan" and the
+  `UNREVIEWED` label no longer contradict each other; Lens A, which now
+  re-checks credential rows, gets the same credential-store ban as Lens B,
+  and the table names credentials by identifier only; `--help` probes are
+  limited to installed third-party CLIs; Gemini citations are re-checked
+  quoted, and against the working tree when the plan builds on uncommitted
+  changes; scratch files are deleted on any exit; the PR gets a plan
+  summary, not the claims table; the run log is only written to a file the
+  user has named.
 
 ## 2.8.0 (2026-09-27)
 
