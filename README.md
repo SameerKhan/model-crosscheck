@@ -56,9 +56,13 @@ these](#when-not-to-use-these).
   changes. Closes with `/tri-review` on the finished diff.
   Each critic runs **two separate lenses**, *is this correct?* and *would
   you authorize this to run?*, because reviewers who share one prompt
-  share its blind spots, however many of them there are. Lens A includes an
-  **executable-claim check**: open every API the plan says it will call and
-  confirm the capability exists with the signature assumed.
+  share its blind spots, however many of them there are. The plan ends with
+  a **claims table** (every API, flag and credential path it relies on, and
+  how that was checked, read-only), which Lens A re-checks row by row
+  rather than trusting. Every point is numbered and graded BLOCKER /
+  SHOULD / NIT by the critic that raised it; every round re-reads the
+  whole plan; and any change no critic has seen is shown to you as
+  `UNREVIEWED`, never as signed off.
 
 ### On decisions and facts
 

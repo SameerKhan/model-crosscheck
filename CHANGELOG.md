@@ -5,6 +5,37 @@ Dates are commit dates. Every entry since 1.2.1 was itself reviewed with
 `/tri-review` before it shipped; the findings that changed the release are
 noted where they mattered.
 
+## 2.9.0 (2026-10-02)
+
+`/tri-plan` convergence, from its own run history: every recorded run used
+all three rounds, and two ended with changes no critic ever saw (one with
+ten amendments made after the cap). The proposal behind this release was
+itself tri-reviewed; two of its ideas (change-only rounds, dropping a lens
+early) were cut because they would have weakened the final-plan guarantee.
+
+- **Claims table.** The plan records its base commit and ends with every
+  API, flag, config key and credential path it relies on, and how each was
+  checked. Checks are read-only; anything needing a live call or a
+  credential is `UNVERIFIED`. Lens A re-checks every row rather than
+  trusting it, and names claims the table is missing.
+- **Numbered, graded points.** Critics number each point and grade it
+  BLOCKER / SHOULD / NIT with typed evidence (file:line, command output,
+  config fact, or "needs an operator fact"). SOUND and AUTHORIZE mean no
+  open BLOCKER. Severity is the critic's: the plan's author can rebut, not
+  downgrade. Open SHOULDs reach the user with their risk; NITs never block.
+- **Full plan every round, every lens every round**, with changes marked
+  and the points ledger attached; each critic answers its open points
+  before raising new ones.
+- **No unreviewed changes.** Anything changed after a critic's last look,
+  including post-cap amendments, is shown as `UNREVIEWED`, and the plan is
+  never called signed off while any exists.
+- **Gemini citations are re-checked** against the base commit
+  (`git show <base>:<path>`); it has cited stale checkouts even when run
+  from inside the right worktree.
+- The approval summary gains a per-round table of open points per critic
+  and lens. An optional, redacted run log records hits and misses
+  (`MISSED-BY-ALL`), so the cost of each critic and lens can be measured.
+
 ## 2.8.0 (2026-09-27)
 
 Second audit pass: Codex and Gemini each walked every skill as an agent

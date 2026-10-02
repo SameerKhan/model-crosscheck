@@ -86,6 +86,18 @@ identical on every platform.
    into the critique prompt, because `codex exec -` reads stdin as its whole
    prompt.
 
+   Head the plan with its **base commit** (`git rev-parse HEAD`), and end it
+   with a **claims table**: one row per API, function, CLI flag, config key
+   or credential path the plan relies on, saying what it is assumed to do
+   and how you checked it (file:line of the definition, `--help` output, the
+   vendor's docs). Checks are **read-only**: read the source, run `--help`,
+   read docs. Anything that would call a live service, touch data, or need a
+   credential is marked `UNVERIFIED` rather than probed, unless the user
+   approves that specific call. The table is a set of assertions for the
+   critics to attack, not facts they inherit: a plan that cannot run
+   usually fails on one of these rows, and Claude's own checks share
+   Claude's blind spots.
+
 2. **Critique gate, run both critics in parallel, in the background**
    (each takes minutes; two separate Bash calls with
    `run_in_background: true`):
@@ -123,15 +135,22 @@ identical on every platform.
    > code to check every claim; AGENTS.md, or CLAUDE.md if there is no
    > AGENTS.md, has project context, when present). Do NOT implement
    > anything, do NOT edit files. Verify the plan's claims against the
-   > files and symbols it names. Do not tour the repo at large, but DO
-   > open every API, function, CLI flag, config key and credential path the
-   > plan says it will use, and confirm the capability actually exists with
-   > the signature the plan assumes. Find: (1) factually wrong assumptions
+   > files and symbols it names. Do not tour the repo at large. The plan
+   > ends with a claims table: re-check EVERY row yourself in the source
+   > (do not trust its "how checked" column), mark each CONFIRMED / WRONG /
+   > UNVERIFIABLE, and name any load-bearing claim missing from the table.
+   > Find: (1) factually wrong assumptions
    > about the codebase, (2) missed files, call sites, or cross-repo blast
    > radius, (3) simpler alternatives, (4) risks/edge cases the plan
    > ignores, (5) anything in the test plan that wouldn't catch a
-   > regression. Be specific, cite file paths. Then give an overall
-   > verdict: SOUND / NEEDS-CHANGES with a ranked list.
+   > regression. Be specific, cite file paths.
+   >
+   > Number every point (P1, P2, ...) and give each a severity: BLOCKER
+   > (wrong or unsafe as written), SHOULD (a real gap the plan could ship
+   > with, at a stated risk), or NIT. Give each point its evidence: a
+   > file:line, command output, a config fact, or "needs an operator fact".
+   >
+   > Verdict: SOUND (no open BLOCKER) / NEEDS-CHANGES.
    >
    > PLAN: <for Codex, the plan contents inlined, `codex exec -` reads stdin
    > as its whole prompt; for Gemini, the absolute path it must read_file>
@@ -157,8 +176,14 @@ identical on every platform.
    > cleanup paths, orphaned processes, tunnels, browsers, temp state, and
    > whether cleanup failure is detected or merely hoped for;
    > (6) reversibility, and what a partial or interrupted run leaves
-   > behind. Be specific, cite file paths. Verdict: AUTHORIZE /
-   > DO-NOT-AUTHORIZE with a ranked list of blockers.
+   > behind. Be specific, cite file paths.
+   >
+   > Number every point (P1, P2, ...) and give each a severity: BLOCKER
+   > (wrong or unsafe as written), SHOULD (a real gap the plan could ship
+   > with, at a stated risk), or NIT. Give each point its evidence: a
+   > file:line, command output, a config fact, or "needs an operator fact".
+   >
+   > Verdict: AUTHORIZE (no open BLOCKER) / DO-NOT-AUTHORIZE.
    >
    > PLAN: <for Codex, the plan contents inlined, `codex exec -` reads stdin
    > as its whole prompt; for Gemini, the absolute path it must read_file>
@@ -181,12 +206,22 @@ identical on every platform.
    unconstrained agent wanders the repo and exceeds `--print-timeout` with
    no output.
 
-3. **Merge and adjudicate.** Dedupe the critique lists, then:
+3. **Merge and adjudicate.** Dedupe the critique lists into one **points
+   ledger** (ID, critic, lens, severity, the point, its disposition), then:
    - **Both critics raised it**: treat as near-certain, revise the plan
-     (only reject with strong code evidence, stated in the round notes).
+     (only reject with strong code evidence, stated in the ledger).
    - **One critic raised it**: verify against the code first; accept
      (revise) or reject with the reason. Never dismiss unchecked, and
      never relay one model's claim into the plan unverified.
+   - **Severity is the critic's.** Claude wrote the plan, so Claude may
+     not downgrade a point; it can only rebut it with evidence, and the
+     critic answers the rebuttal next round. A BLOCKER still disputed at
+     the cap goes to the user as a decision.
+   - **Re-check every Gemini file:line before acting on it**, against the
+     base commit (`git show <base>:<path>`). Gemini has cited stale local
+     checkouts even when pointed at the right tree and run from inside
+     it; on a content mismatch, reject the citation and judge the
+     argument on its own. Codex read the right tree in the same runs.
 
    ⚠️ **Weigh convergence by whether the critics shared a question.**
    Two models agreeing *within the same lens* is much weaker evidence than
@@ -206,14 +241,18 @@ identical on every platform.
    there the whole time; the question wasn't.
 
 4. **Converge, BOTH critics must sign off on the FINAL plan**: on **both
-   lenses**. Send the revised plan back to both in parallel (same lens
-   prompts, plus a "previous round's points and how each was addressed or
-   rebutted" section). Repeat revise → re-critique until both return
+   lenses**. Send the **full** revised plan back to both in parallel, with
+   the changes marked and the points ledger attached, never just the
+   changes: an amendment can break something elsewhere in the plan, and
+   only a critic reading the whole plan can see it. Each critic answers
+   every one of its open points (resolved / not resolved, with why) before
+   raising new ones. Repeat revise → re-critique until both return
    **SOUND** and **AUTHORIZE**, up to **3 rounds** total, the cap is
-   shared, not per-critic. **Rounds are not a substitute for a second
-   question:** if all rounds so far have run one lens, adding a fourth
-   round is worth less than running the other lens once. Do not present a
-   plan to the user that either critic has not seen in its final form.
+   shared, not per-critic. Every lens runs every round: a fix for a
+   correctness point can open an operational hole. (Rounds are no
+   substitute for a second question: more rounds under one lens find less
+   than one pass under the other.) Do not present a plan to the user that
+   either critic has not seen in its final form.
    - If either critic still says NEEDS-CHANGES or DO-NOT-AUTHORIZE after
      round 3, stop looping:
      present the plan WITH each unresolved disagreement as a named decision
@@ -222,11 +261,18 @@ identical on every platform.
      never keep looping past 3 rounds (models can trade nits forever).
    - A critic that keeps raising NEW nits each round (rather than defending
      old ones) is churning, not converging, after round 3 that also goes
-     to the user as-is.
+     to the user as-is. NITs never block; they go in an appendix.
+   - **No unreviewed changes.** Anything changed after a critic's last
+     look, including amendments made after the cap, is marked
+     `UNREVIEWED` in what the user sees, and the plan is never described
+     as signed off while any exists. Whether to spend a fourth round on
+     the final text is the user's call, not a reason to skip the label.
 
-5. **User approval.** Present the converged plan with a short "what each
-   critic changed / how many rounds / any [disputed] points" section, the
-   user approves before any code is written.
+5. **User approval.** Present the converged plan with a short section
+   covering: what each critic changed; a per-round table of open BLOCKER
+   and SHOULD counts per critic and lens, with the verdicts; every SHOULD
+   still open, with its stated risk; every `UNREVIEWED` change; every
+   [disputed] point. The user approves before any code is written.
 
 6. **Implement.** Claude writes the code (Claude holds the tools, memory,
    and repo context). Neither critic edits the working tree, multiple
@@ -235,6 +281,15 @@ identical on every platform.
 7. **Close with /tri-review** (the sibling skill) on the finished diff
    before any PR/merge. Then delete the scratch files (plan, lens prompts,
    critiques); the plan the user approved belongs in the PR description.
+
+   **If the user keeps a run log** (ask once; never create one silently),
+   append one redacted line per run: date, a short slug, rounds used,
+   final verdict per critic and lens, open-point counts per round. When
+   /tri-review or production later finds a defect the plan stage should
+   have caught, log it too, credited to the critic and lens that raised
+   it or as `MISSED-BY-ALL`. Without the misses, the log can only count
+   hits, and cannot tell which critic or lens earns its cost. Never log
+   plan text, code, secrets, or customer data.
 
 ## A human who owns the resource is a third reviewer class
 
