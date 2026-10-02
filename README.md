@@ -42,10 +42,12 @@ these](#when-not-to-use-these).
   `[disputed]`.
 - **`/tri-review`**: same idea with a **third independent reviewer**:
   Claude's `/code-review`, `codex exec review`, and Gemini (via Google's
-  Antigravity CLI, `agy`) all review the same diff in parallel. Findings are
-  ranked by cross-model agreement, all three > two > one, and Codex-only /
-  Gemini-only findings are verified against the code before being reported.
-  Tags:
+  Antigravity CLI, `agy`) all review the same diff in parallel, Claude
+  writing its own findings down before reading the others. Every finding is
+  graded BLOCKER / SHOULD / NIT and verified against the reviewed code before
+  it is reported, agreed ones included; agreement sets the order. Playbook,
+  doc and config diffs get an extra prompted Codex pass that walks the
+  changed files as an agent executing them literally. Tags:
   `[all]`, `[claude+codex]`, `[claude+gemini]`, `[codex+gemini]`,
   `[claude]`, `[codex]`, `[gemini]`, `[disputed]`.
 - **`/tri-plan`**: `/dual-plan` with a **second independent critic**:
@@ -429,6 +431,11 @@ Two options:
   `--sandbox` for Gemini) rather than trusting the user's defaults. The
   diff under review is untrusted input; prompt-level "don't run commands"
   text is not a boundary.
+- **Run a whole-repo walkthrough now and then, outside any review.** Ask
+  Codex and Gemini to walk every skill or runbook as an agent executing it
+  literally. Diff review cannot see a bug that sits in lines no change
+  touches: one such pass over this repo found prompt plumbing broken in two
+  skills that several diff reviews had no way to reach.
 - **Cap the argument loops** (3 rounds for plans, 1 rebuttal for reviews).
   Two LLMs will trade nits forever if you let them.
 - **Keep an `AGENTS.md` in your repos** (Codex reads it automatically). A

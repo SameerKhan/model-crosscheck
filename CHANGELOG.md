@@ -5,6 +5,39 @@ Dates are commit dates. Every entry since 1.2.1 was itself reviewed with
 `/tri-review` before it shipped; the findings that changed the release are
 noted where they mattered.
 
+## 2.10.0 (2026-10-02)
+
+`/tri-review`, from this week's five review runs. The proposal behind this
+release was itself tri-reviewed, and lost its headline: replacing Codex's
+built-in review on playbook diffs. All three legs showed the built-in review
+had found real defects on playbook diffs; its one low count came from a
+different question. It stays on every diff, and the new pass is added.
+
+- **Trunk detection.** CLAUDE.md or AGENTS.md first; otherwise
+  `git ls-remote --symref origin HEAD` (the server, not the cached
+  `origin/HEAD`, which can be years stale), validated with
+  `git rev-parse --verify`; stop if they disagree. The trunk is named in
+  the report.
+- **Prompted Codex pass for playbooks, prompts, plans, docs and config**,
+  alongside the built-in review: walk each changed section as an agent
+  executing it literally. Findings on lines the change neither touches nor
+  exercises are reported as PRE-EXISTING and never block. A whole-repo
+  walkthrough is a separate periodic audit (new README tip).
+- **Blind Claude leg.** Claude writes its findings to disk before opening
+  either external output, on the same baseline question as the others, so
+  the agreement tags mean something.
+- **Graded findings.** BLOCKER means a failure caused or exposed by this
+  change; Codex's P0-P3 map onto the grades; a toolchain-wide concern is at
+  most SHOULD; severity belongs to the leg that raised it. Open BLOCKERs
+  mean the review recommends against merging; the user decides.
+- **Every finding is verified, agreed ones included**, against what was
+  reviewed (HEAD, or the patch for uncommitted work), never the base
+  commit, where new lines do not exist.
+- **Standing risks** the user keeps are matched by reference, with "made
+  worse by this change: yes / no"; yes is a BLOCKER again, and Claude never
+  adds to the list.
+- Optional run log of counts only; misses are logged when they surface.
+
 ## 2.9.0 (2026-10-02)
 
 `/tri-plan` convergence, from its own run history: every recorded run used

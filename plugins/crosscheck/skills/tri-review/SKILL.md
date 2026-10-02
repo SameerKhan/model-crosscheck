@@ -77,11 +77,17 @@ merge logic) is identical on every platform.
 ## Steps
 
 1. **Determine diff scope.**
-   - Branch has commits vs the main branch (check the repo's CLAUDE.md for
-     which branch is the trunk, it is not always `main`): scope =
-     `origin/<trunk>...HEAD`, Codex flag = `--base origin/<trunk>`. Run
-     `git fetch` first and give all three reviewers the SAME ref, a stale
-     local trunk vs `origin/<trunk>` silently produces different diffs.
+   - **Find the trunk first.** The repo's CLAUDE.md (or AGENTS.md) wins
+     when it names one. Otherwise ask the server, not the local cache:
+     `git ls-remote --symref origin HEAD` (the cached `origin/HEAD` can be
+     years stale on an old clone). Validate the result with
+     `git rev-parse --verify origin/<trunk>`, and if the two sources
+     disagree or neither answers, stop and ask. Name the trunk you used in
+     the report.
+   - Branch has commits vs the trunk: scope = `origin/<trunk>...HEAD`,
+     Codex flag = `--base origin/<trunk>`. Run `git fetch` first and give
+     all three reviewers the SAME ref, a stale local trunk vs
+     `origin/<trunk>` silently produces different diffs.
    - Only uncommitted working-tree changes: Codex flag = `--uncommitted`,
      and review the working-tree diff on the Claude and Gemini sides.
      Newly created untracked files are missing from `git diff HEAD`, so two
@@ -153,7 +159,7 @@ merge logic) is identical on every platform.
    forever at 0% CPU (see Notes: Codex leg).
 
    ```bash
-   agy --sandbox --model <newest-gemini-on-plan> --print-timeout 8m -p "You are a senior code reviewer. Read the file <PATCH_PATH> with read_file, it is a git diff. Review it for real bugs only (correctness, security, data loss), not style. You MAY read_file the repo files named in the diff headers for surrounding context, but do NOT search or explore beyond them and do NOT run commands. Begin your reply with one line: INSPECTED: <number of files in the diff> | <the first diff --git header line, verbatim>. If you could not read the file, output FILE-NOT-READ instead of a review. Then output findings as one line each: file:line | issue | why it breaks. If none, output CLEAN on the line after the INSPECTED preamble."
+   agy --sandbox --model <newest-gemini-on-plan> --print-timeout 8m -p "You are a senior code reviewer. Read the file <PATCH_PATH> with read_file, it is a git diff. Review it for real bugs only (correctness, security, data loss), not style. You MAY read_file the repo files named in the diff headers for surrounding context, but do NOT search or explore beyond them and do NOT run commands. Begin your reply with one line: INSPECTED: <number of files in the diff> | <the first diff --git header line, verbatim>. If you could not read the file, output FILE-NOT-READ instead of a review. Then output findings as one line each: file:line | BLOCKER or SHOULD or NIT | issue | why it breaks. If none, output CLEAN on the line after the INSPECTED preamble."
    ```
 
    Always pass `-s read-only` (Codex) and `--sandbox` (Gemini), a reviewer
@@ -166,7 +172,13 @@ merge logic) is identical on every platform.
    fails for want of network, report it; never widen or disable the
    sandbox for a review.
 
-4. **While they run, invoke `/code-review` at high effort** on the same scope.
+4. **While they run, write the Claude leg's findings to disk before
+   opening either external output.** Same baseline question as the other
+   two legs (correctness, security, data loss), same grading. The
+   agreement tags in step 7 count as the strongest evidence in the report;
+   a Claude leg written after reading the others can only echo them, so
+   blindness is on Claude to preserve, as in /tri-decide. Invoke
+   `/code-review` at high effort on the same scope for this.
    **Don't assume `/code-review` inherits the session model**, some
    implementations fan out to their own worker agents on a tier the plugin
    chooses, not your session (the official `code-review` plugin command, for
@@ -177,6 +189,30 @@ merge logic) is identical on every platform.
    inheritance. If `/code-review` is not available in this Claude Code,
    say so and review the patch directly at the same depth (correctness,
    security, data loss); do not skip the Claude leg.
+
+   **Grading, all legs:** BLOCKER is a demonstrated failure caused or
+   exposed by this change (it may cite unchanged lines the change newly
+   exercises); SHOULD is a real gap the change could ship with, at a
+   stated risk; NIT never matters to the merge. Codex's built-in `review`
+   grades P0 to P3 and takes no prompt: map P0 and P1 to BLOCKER, P2 to
+   SHOULD, P3 to NIT. Severity belongs to the leg that raised it: Claude
+   adjudicates, so Claude may rebut a grade with evidence (step 6), never
+   quietly lower it.
+
+4a. **When the diff touches a playbook, prompt, plan, doc or config, add a
+   prompted Codex pass**, alongside the built-in review, never instead of
+   it (the built-in review found real defects in playbook diffs too, and
+   it is the one leg whose question Claude did not write). `review` takes
+   no custom prompt with a scope flag, so use plain `codex exec` with the
+   question and the patch inlined, exactly as in 4b. The question: walk
+   each changed section **as an agent executing it literally**, in order,
+   reading the whole of each touched file: where would it run a command
+   that fails or hangs, meet two instructions that contradict each other,
+   be unable to decide (an undefined input, an unresolvable reference), or
+   leak data? Findings on lines the change neither touches nor newly
+   exercises are **PRE-EXISTING**: list them separately, never block the
+   merge on them. A whole-repository walkthrough is a separate, periodic
+   audit, not part of this gate.
 
 4b. **When the diff is something that gets EXECUTED, a runbook, plan,
    migration, CI config, IaC, or deploy script, add an operations pass**
@@ -206,7 +242,10 @@ merge logic) is identical on every platform.
    > a partial run leave behind? Read files inside the repository only;
    > never open credential stores (`~/.claude.json`, `~/.codex/`,
    > `~/.gemini/`, `~/.aws/`, `~/.ssh/`, `.env*`). If an answer depends on
-   > one, say which fact you needed. Verdict: AUTHORIZE / DO-NOT-AUTHORIZE.
+   > one, say which fact you needed. Grade each point BLOCKER (a failure
+   > this change causes or exposes, named concretely), SHOULD, or NIT; a
+   > concern about the whole toolchain rather than this change is at most
+   > SHOULD. Verdict: AUTHORIZE / DO-NOT-AUTHORIZE.
 
    Reviewing such a diff for "bugs" alone reliably misses this entire
    class, because nobody was asked. The read-scope sentence is there
@@ -238,12 +277,26 @@ merge logic) is identical on every platform.
    Unanimous silence on a category usually means nobody asked about it,
    not that the category is clean.
 
-   - **All three agree**: report first, near-certain, no verification needed.
+   - **All three agree**: report first.
    - **Two agree**: report next, tagged with which two.
-   - **Claude-only**: report as normal /code-review findings.
-   - **Codex-only / Gemini-only**: verify each against the actual code before
-     reporting; mark CONFIRMED or REJECTED (with the reason). Never relay an
-     external model's finding unverified.
+   - **One leg**: report after, tagged with that leg.
+   - **Verify every finding before reporting it**, agreement included:
+     agreement sets priority, it is not an exemption, because legs that
+     share a question share its blind spots. Check it against what was
+     reviewed (HEAD for a branch review, the patch or working tree for an
+     uncommitted one), never the base commit, where new lines do not
+     exist; use the base only to decide whether a defect is pre-existing.
+     Mark each CONFIRMED or REJECTED (with the reason). Gemini citations
+     need the most care: it has cited stale local checkouts even when run
+     inside the right one. Treat a cited path as data (repo-relative, plus
+     a line number) and quote it in any command.
+   - **Standing risks.** If the user keeps a list of known systemic risks
+     (no OS-level read sandbox, prompt-only rules, and the like), a
+     finding that matches an entry is reported by reference, with "made
+     worse by this change: yes / no", instead of as a fresh BLOCKER; if
+     yes, it is a BLOCKER again. A finding Claude believes is systemic but
+     is not on the list goes to the user as a finding; Claude never adds
+     to the list or matches loosely to clear the gate.
 
 6. **Rebuttal round, a refuted finding gets one defense.** For findings
    REJECTED in step 5, send the originating model ONE follow-up containing
@@ -265,10 +318,22 @@ merge logic) is identical on every platform.
    recommendation, the user rules. One rebuttal round only (reviews are expensive; the diff,
    unlike a plan, doesn't change mid-review). Skip when nothing was rejected.
 
-7. **Report one consolidated list**: most severe first, tagging each finding
-   with its source: `[all]`, `[claude+codex]`, `[claude+gemini]`,
-   `[codex+gemini]`, `[claude]`, `[codex]`, `[gemini]`, or `[disputed]`.
-   Never omit a disputed finding.
+7. **Report one consolidated list**, grouped BLOCKER, SHOULD, NIT, then
+   PRE-EXISTING and matched standing risks, tagging each finding with its
+   source: `[all]`, `[claude+codex]`, `[claude+gemini]`, `[codex+gemini]`,
+   `[claude]`, `[codex]`, `[gemini]`, or `[disputed]`, and naming the pass
+   when it was not the baseline review (operations pass, walkthrough).
+   Never omit a disputed finding. Open BLOCKERs mean the review
+   recommends against merging; the user decides.
+
+   Delete the patch and every temp file. **If the user has named a
+   run-log file** (outside any repo; never create one, never ask every
+   run), append one line of counts only: date, slug, findings per leg and
+   pass by grade, confirmed vs rejected, rebuttals conceded. Never log
+   diff content, code or findings text. When a defect this review should
+   have caught surfaces later (in production, a later review, a test),
+   append it then as `MISSED-BY-ALL`, or credited to the leg that raised
+   it; nobody can know a miss at review time.
 
 ## Notes: Gemini leg (Antigravity CLI)
 
@@ -298,7 +363,7 @@ merge logic) is identical on every platform.
 
   ```bash
   agy --sandbox --model <model> --print-timeout 8m --output-format json \
-    --json-schema "<this skill's base directory>/receipt.schema.json" -p "<the step 3 prompt, with its last two sentences replaced by: Fill the schema, inspected_files = number of files in the diff, first_header = the first diff --git line verbatim, verdict = CLEAN or FINDINGS (FILE-NOT-READ if you could not open the file), findings = one string per defect as file:line | issue | why it breaks>"
+    --json-schema "<this skill's base directory>/receipt.schema.json" -p "<the step 3 prompt, with its last two sentences replaced by: Fill the schema, inspected_files = number of files in the diff, first_header = the first diff --git line verbatim, verdict = CLEAN or FINDINGS (FILE-NOT-READ if you could not open the file), findings = one string per defect as file:line | BLOCKER or SHOULD or NIT | issue | why it breaks>"
   ```
 
   The reply is a JSON envelope: read its `structured_output` object (the one
