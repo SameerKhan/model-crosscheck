@@ -308,7 +308,10 @@ merge logic) is identical on every platform.
      absolute), with a numeric line, and quote it in any command.
    - **Standing risks.** Only if the user has named or supplied a list of
      known systemic risks (no OS-level read sandbox, prompt-only rules, and
-     the like) in this session or the repo: a finding that matches an entry
+     the like) in this session or the repo (a starter list ships next to
+     this skill as `standing-risks.example.md`; copy it somewhere you
+     control, since plugin updates replace this directory): a finding that
+     matches an entry
      is reported by reference, with "made worse by this change: yes / no"
      and one sentence of evidence for a "no", next to the leg's own
      wording, instead of as a fresh BLOCKER; if yes, it is a BLOCKER

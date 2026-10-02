@@ -230,6 +230,12 @@ identical on every platform.
      not downgrade a point; it can only rebut it with evidence, and the
      critic answers the rebuttal next round. A BLOCKER still disputed at
      the cap goes to the user as a decision.
+   - **Standing risks.** Lens B will raise toolchain-wide concerns. If the
+     user has named a standing-risks list, apply the rule in /tri-review's
+     step 5 (`../tri-review/SKILL.md`): a matching point is reported by
+     reference with "made worse by this plan: yes / no" and one sentence
+     of evidence for a "no"; yes keeps it a BLOCKER. Never add to the list
+     or match loosely to reach AUTHORIZE.
    - **Re-check every Gemini file:line before acting on it**, against the
      base commit (`git show "<base>:<path>"`), or against the working-tree
      file when the plan builds on uncommitted changes. Treat the citation

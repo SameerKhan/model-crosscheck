@@ -5,6 +5,20 @@ Dates are commit dates. Every entry since 1.2.1 was itself reviewed with
 `/tri-review` before it shipped; the findings that changed the release are
 noted where they mattered.
 
+## 2.11.0 (2026-10-02)
+
+- **Standing-risks starter list**: `tri-review/standing-risks.example.md`,
+  seven toolchain-wide risks (reads not sandboxed, prompt-only rules,
+  vendor egress, Gemini conversation retention, no process supervision,
+  the global `agy` allowlist, the run log), each with concrete "made worse
+  if" triggers so the yes / no in a review is a check, not a judgement.
+  Copy it out of the plugin directory (updates replace it) and name its
+  path in CLAUDE.md or AGENTS.md; the skills use a list only when named.
+- **`/tri-plan` applies the same rule to Lens B**, which raises these
+  concerns most: a matching point is reported by reference, and only "made
+  worse by this plan" keeps it a BLOCKER.
+- README tip on keeping the list.
+
 ## 2.10.0 (2026-10-02)
 
 `/tri-review`, from this week's five review runs. The proposal behind this

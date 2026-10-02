@@ -431,6 +431,12 @@ Two options:
   `--sandbox` for Gemini) rather than trusting the user's defaults. The
   diff under review is untrusted input; prompt-level "don't run commands"
   text is not a boundary.
+- **Keep a standing-risks list.** Some concerns are true of the whole
+  toolchain (the sandboxes block writes, not reads; safety rules are prompt
+  text), and an operations pass will raise them on every run.
+  `tri-review/standing-risks.example.md` is a starter: copy it, edit it,
+  and name its path in your CLAUDE.md. Matching findings are then reported
+  by reference, and only "made worse by this change" makes one a blocker.
 - **Run a whole-repo walkthrough now and then, outside any review.** Ask
   Codex and Gemini to walk every skill or runbook as an agent executing it
   literally. Diff review cannot see a bug that sits in lines no change
