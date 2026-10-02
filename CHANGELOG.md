@@ -7,7 +7,8 @@ noted where they mattered.
 
 ## 2.11.0 (2026-10-02)
 
-- **Standing-risks starter list**: `tri-review/standing-risks.example.md`,
+- **Standing-risks starter list**:
+  `plugins/crosscheck/skills/tri-review/standing-risks.example.md`,
   seven toolchain-wide risks (reads not sandboxed, prompt-only rules,
   vendor egress, Gemini conversation retention, no process supervision,
   the global `agy` allowlist, the run log), each with concrete "made worse
@@ -18,6 +19,18 @@ noted where they mattered.
   concerns most: a matching point is reported by reference, and only "made
   worse by this plan" keeps it a BLOCKER.
 - README tip on keeping the list.
+- From this release's own /tri-review (blind Claude leg, Codex built-in
+  review, graded Gemini pass, walkthrough pass; 17 raw findings, 2 partly
+  or wholly rejected and conceded): `/tri-plan` gave the list only to
+  Claude, so a critic could never sign off on a risk no plan revision can
+  resolve (Codex and Gemini both caught it); the list now goes to the
+  critics and to every prompted /tri-review pass, the leg makes the match,
+  and a match Claude proposes goes through the grade rebuttal. A list
+  named in repo files must stay under the repo root, and a diff cannot
+  change the list it is judged by. SR-1, SR-2 and SR-5 also count NEW
+  unguarded additions as "made worse", not just removals; vague triggers
+  made decidable. The walkthrough leg's first try failed with "Selected
+  model is at capacity" while exiting 0: now documented.
 
 ## 2.10.0 (2026-10-02)
 

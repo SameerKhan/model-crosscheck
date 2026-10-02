@@ -434,8 +434,10 @@ Two options:
 - **Keep a standing-risks list.** Some concerns are true of the whole
   toolchain (the sandboxes block writes, not reads; safety rules are prompt
   text), and an operations pass will raise them on every run.
-  `tri-review/standing-risks.example.md` is a starter: copy it, edit it,
-  and name its path in your CLAUDE.md. Matching findings are then reported
+  `plugins/crosscheck/skills/tri-review/standing-risks.example.md` is a
+  starter (installed as a plugin, it is under
+  `~/.claude/plugins/cache/model-crosscheck/crosscheck/<version>/skills/tri-review/`):
+  copy it out, edit it, and name its path in your CLAUDE.md. Matching findings are then reported
   by reference, and only "made worse by this change" makes one a blocker.
 - **Run a whole-repo walkthrough now and then, outside any review.** Ask
   Codex and Gemini to walk every skill or runbook as an agent executing it

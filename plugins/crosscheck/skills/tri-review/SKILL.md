@@ -309,9 +309,20 @@ merge logic) is identical on every platform.
    - **Standing risks.** Only if the user has named or supplied a list of
      known systemic risks (no OS-level read sandbox, prompt-only rules, and
      the like) in this session or the repo (a starter list ships next to
-     this skill as `standing-risks.example.md`; copy it somewhere you
-     control, since plugin updates replace this directory): a finding that
-     matches an entry
+     this skill as `standing-risks.example.md`; it is **never in force by
+     itself**: only a copy the user has named counts, kept somewhere they
+     control, since plugin updates replace this directory). A list named
+     inside the repo (CLAUDE.md, AGENTS.md) must be a repo-relative `.md`
+     path that stays under the repo root (no `..`, not absolute, not a
+     credential path); anything else is ignored. If the diff under review
+     changes the list or the line that names it, use the trunk's version:
+     a change cannot vouch for itself. A path outside the repo counts only
+     when the user gives it directly. Append the
+     named list to every prompted pass (Gemini, 4a, 4b) with "cite a
+     matching point as SR-n, with made worse yes / no"; the leg makes the
+     match, and a match Claude proposes for a leg's finding (including the
+     built-in review's, which takes no prompt) goes through the step 6
+     grade rebuttal. A finding that matches an entry
      is reported by reference, with "made worse by this change: yes / no"
      and one sentence of evidence for a "no", next to the leg's own
      wording, instead of as a fresh BLOCKER; if yes, it is a BLOCKER
@@ -443,6 +454,10 @@ merge logic) is identical on every platform.
   (`codex login` or the Codex desktop app). Don't change the user's global
   `~/.codex/config.toml`; use `-c` overrides only. Always override reasoning
   effort to `high`, a low default is too weak for review.
+- **"Selected model is at capacity" still exits 0.** Seen 2026-10-02: the
+  leg printed the error twice to stderr, wrote no `-o` file, and the shell
+  reported success. Treat a missing or empty `-o` file as a failed leg
+  whatever the exit code; check stderr for "at capacity" and retry once.
 - **Close stdin on every `codex exec`.** It waits for stdin to reach EOF
   before starting, even when the prompt is an argument or the subcommand
   is `review`. Under a background shell whose stdin stays open that is a

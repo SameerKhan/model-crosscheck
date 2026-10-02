@@ -26,7 +26,8 @@ including credential stores. The prompts' bans on `~/.claude.json`,
 `~/.codex/`, `~/.gemini/`, `~/.aws/`, `~/.ssh/` and `.env*` are text only.
 **Made worse if the change:** widens what a leg is told it may read; removes
 or weakens a credential-store ban; drops `-s read-only`, `--sandbox`,
-`--ephemeral` or `--ignore-user-config` from any command; gives an external
+`--ephemeral` or `--ignore-user-config` from any command, or adds a new
+`codex` or `agy` invocation without them; gives an external
 leg MCP servers or new tools.
 
 ## SR-2: Safety rules are prompt-only
@@ -36,12 +37,15 @@ leg MCP servers or new tools.
 follows, not capabilities it lacks.
 **Made worse if the change:** moves a property from a command flag into
 prose; removes a gate or a "never" rule; makes an unconditional gate depend
-on the agent's own judgement.
+on the agent's own judgement; or adds a new risky action (a write, a live
+call, an external send) guarded only by prompt text.
 
 ## SR-3: Work leaves the machine
 
 **Accepted:** diffs, plans, briefs, evidence packs and any repo file a leg
 opens go to OpenAI and Google under your accounts' terms.
+Note: a standing-risks list is appended to the prompted passes, so it
+goes to both vendors too; keep secrets and customer detail out of it.
 **Made worse if the change:** sends a new category of data to an external
 leg: first-party business data, other repositories' code, secrets, customer
 data, or untracked files not shown to you first.
@@ -52,16 +56,16 @@ data, or untracked files not shown to you first.
 `~/.gemini/antigravity-cli/conversations/`, which grows by hundreds of MB a
 month under regular use. Keep it at mode 700 and purge it periodically
 (skip files modified in the last hour, in case a run is live).
-**Made worse if the change:** sends more sensitive data to Gemini, adds
-Gemini runs without a reason, or loosens the directory's permissions.
+**Made worse if the change:** sends Gemini any data class listed under SR-3, adds a Gemini leg to a skill, or loosens the directory's permissions.
 
 ## SR-5: No process supervision
 
 **Accepted:** legs run as background jobs with no signal-trap cleanup; an
 interrupted run can leave temp files (private, via `mktemp`) and processes.
-**Made worse if the change:** adds long-lived processes, tunnels or
-browsers; writes sensitive data outside `mktemp` files; puts temp files
-inside a repo; removes a cleanup instruction.
+**Made worse if the change:** adds processes, tunnels or browsers that
+are meant to outlive the run, or that the run does not stop; writes sensitive data outside `mktemp` files; puts temp files
+inside a repo; removes a cleanup instruction; or adds temp files or
+background processes with no cleanup for them.
 
 ## SR-6: Headless Gemini auto-approves its global allowlist
 
