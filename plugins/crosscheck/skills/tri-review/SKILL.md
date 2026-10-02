@@ -77,17 +77,21 @@ merge logic) is identical on every platform.
 ## Steps
 
 1. **Determine diff scope.**
-   - **Find the trunk first.** The repo's CLAUDE.md (or AGENTS.md) wins
-     when it names one. Otherwise ask the server, not the local cache:
-     `git ls-remote --symref origin HEAD` (the cached `origin/HEAD` can be
-     years stale on an old clone). Validate the result with
-     `git rev-parse --verify origin/<trunk>`, and if the two sources
-     disagree or neither answers, stop and ask. Name the trunk you used in
-     the report.
+   - **Find the trunk first.** If the repo's CLAUDE.md or AGENTS.md names
+     one, use it (if both name different trunks, stop and ask). Only when
+     neither names one, ask the server, not the local cache:
+     `git ls-remote --symref origin HEAD` and take the branch from its
+     `ref: refs/heads/<name>` line (the cached `origin/HEAD` can be years
+     stale on an old clone). Treat the name as data: check it with
+     `git check-ref-format --branch "<name>"` and quote it in every
+     command. Then fetch it and validate:
+     `git fetch origin "<trunk>" && git rev-parse --verify "origin/<trunk>"`.
+     If no source names a trunk or the fetch or validation fails, stop and
+     ask. Name the trunk you used in the report.
    - Branch has commits vs the trunk: scope = `origin/<trunk>...HEAD`,
-     Codex flag = `--base origin/<trunk>`. Run `git fetch` first and give
-     all three reviewers the SAME ref, a stale local trunk vs
-     `origin/<trunk>` silently produces different diffs.
+     Codex flag = `--base origin/<trunk>`. Give all three reviewers the
+     SAME freshly fetched ref; a stale local trunk vs `origin/<trunk>`
+     silently produces different diffs.
    - Only uncommitted working-tree changes: Codex flag = `--uncommitted`,
      and review the working-tree diff on the Claude and Gemini sides.
      Newly created untracked files are missing from `git diff HEAD`, so two
@@ -172,9 +176,15 @@ merge logic) is identical on every platform.
    fails for want of network, report it; never widen or disable the
    sandbox for a review.
 
+   **Capture both legs' output to files** (`CODEX_OUT=$(mktemp)` via `-o`,
+   `GEM_OUT=$(mktemp)` via `> "$GEM_OUT" 2>&1`) and do not open them until
+   step 4's Claude file is written: output printed straight to the
+   background task can surface before the Claude leg is done.
+
 4. **While they run, write the Claude leg's findings to disk before
    opening either external output.** Same baseline question as the other
-   two legs (correctness, security, data loss), same grading. The
+   two legs (correctness, security, data loss), same grading, written to
+   `CLAUDE_OUT=$(mktemp)` (never the repo). The
    agreement tags in step 7 count as the strongest evidence in the report;
    a Claude leg written after reading the others can only echo them, so
    blindness is on Claude to preserve, as in /tri-decide. Invoke
@@ -197,7 +207,8 @@ merge logic) is identical on every platform.
    grades P0 to P3 and takes no prompt: map P0 and P1 to BLOCKER, P2 to
    SHOULD, P3 to NIT. Severity belongs to the leg that raised it: Claude
    adjudicates, so Claude may rebut a grade with evidence (step 6), never
-   quietly lower it.
+   quietly lower it. When legs grade the same finding differently, it is
+   filed under the highest grade, with every leg's grade shown.
 
 4a. **When the diff touches a playbook, prompt, plan, doc or config, add a
    prompted Codex pass**, alongside the built-in review, never instead of
@@ -209,7 +220,10 @@ merge logic) is identical on every platform.
    reading the whole of each touched file: where would it run a command
    that fails or hangs, meet two instructions that contradict each other,
    be unable to decide (an undefined input, an unresolvable reference), or
-   leak data? Findings on lines the change neither touches nor newly
+   leak data? Grade each BLOCKER, SHOULD or NIT. Read files inside the
+   repository only; never open credential stores (`~/.claude.json`,
+   `~/.codex/`, `~/.gemini/`, `~/.aws/`, `~/.ssh/`, `.env*`). Findings on
+   lines the change neither touches nor newly
    exercises are **PRE-EXISTING**: list them separately, never block the
    merge on them. A whole-repository walkthrough is a separate, periodic
    audit, not part of this gate.
@@ -245,7 +259,8 @@ merge logic) is identical on every platform.
    > one, say which fact you needed. Grade each point BLOCKER (a failure
    > this change causes or exposes, named concretely), SHOULD, or NIT; a
    > concern about the whole toolchain rather than this change is at most
-   > SHOULD. Verdict: AUTHORIZE / DO-NOT-AUTHORIZE.
+   > SHOULD. Verdict: AUTHORIZE if no BLOCKER remains, else
+   > DO-NOT-AUTHORIZE.
 
    Reviewing such a diff for "bugs" alone reliably misses this entire
    class, because nobody was asked. The read-scope sentence is there
@@ -288,20 +303,29 @@ merge logic) is identical on every platform.
      exist; use the base only to decide whether a defect is pre-existing.
      Mark each CONFIRMED or REJECTED (with the reason). Gemini citations
      need the most care: it has cited stale local checkouts even when run
-     inside the right one. Treat a cited path as data (repo-relative, plus
-     a line number) and quote it in any command.
-   - **Standing risks.** If the user keeps a list of known systemic risks
-     (no OS-level read sandbox, prompt-only rules, and the like), a
-     finding that matches an entry is reported by reference, with "made
-     worse by this change: yes / no", instead of as a fresh BLOCKER; if
-     yes, it is a BLOCKER again. A finding Claude believes is systemic but
+     inside the right one. Treat a cited path as data: accept it only if
+     it appears in the reviewed patch or under the repo root (no `..`, not
+     absolute), with a numeric line, and quote it in any command.
+   - **Standing risks.** Only if the user has named or supplied a list of
+     known systemic risks (no OS-level read sandbox, prompt-only rules, and
+     the like) in this session or the repo: a finding that matches an entry
+     is reported by reference, with "made worse by this change: yes / no"
+     and one sentence of evidence for a "no", next to the leg's own
+     wording, instead of as a fresh BLOCKER; if yes, it is a BLOCKER
+     again. With no list, report every finding normally. A finding Claude believes is systemic but
      is not on the list goes to the user as a finding; Claude never adds
      to the list or matches loosely to clear the gate.
 
 6. **Rebuttal round, a refuted finding gets one defense.** For findings
-   REJECTED in step 5, send the originating model ONE follow-up containing
-   the finding plus your refutation evidence, asking it to CONCEDE or DEFEND
-   with code citations:
+   REJECTED in step 5, send each external leg that raised it ONE follow-up
+   containing the finding plus your refutation evidence, asking it to
+   CONCEDE or DEFEND with code citations (a Claude-only finding that
+   verification rejects is simply dropped, with the reason noted, since
+   Claude is the verifier). The same round carries **grade disputes**: a
+   finding Claude confirms but would grade lower goes back as
+   CONCEDE-GRADE or DEFEND-GRADE, and the finding itself is kept either
+   way; an unresolved grade is reported `[disputed]` with both grades,
+   filed under the higher:
    - Codex: `codex exec --ephemeral --ignore-user-config -s read-only
      -c model_reasoning_effort="high" "<prompt>" < /dev/null` (the
      prompt as an argument, stdin closed as in step 3).
@@ -328,7 +352,8 @@ merge logic) is identical on every platform.
 
    Delete the patch and every temp file. **If the user has named a
    run-log file** (outside any repo; never create one, never ask every
-   run), append one line of counts only: date, slug, findings per leg and
+   run), append one line of counts only: date, slug (the branch name or a
+   short name for the change), findings per leg and
    pass by grade, confirmed vs rejected, rebuttals conceded. Never log
    diff content, code or findings text. When a defect this review should
    have caught surfaces later (in production, a later review, a test),
@@ -359,7 +384,7 @@ merge logic) is identical on every platform.
   preamble, let the CLI enforce the receipt. A schema ships next to this
   file as `receipt.schema.json` (fields `inspected_files`, `first_header`,
   `verdict` ∈ CLEAN / FINDINGS / FILE-NOT-READ, `findings[]` of
-  `file:line | issue | why` strings). Pick one path per run, not both:
+  `file:line | grade | issue | why` strings). Pick one path per run, not both:
 
   ```bash
   agy --sandbox --model <model> --print-timeout 8m --output-format json \

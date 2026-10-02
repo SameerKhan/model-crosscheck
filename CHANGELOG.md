@@ -37,6 +37,18 @@ different question. It stays on every diff, and the new pass is added.
   worse by this change: yes / no"; yes is a BLOCKER again, and Claude never
   adds to the list.
 - Optional run log of counts only; misses are logged when they surface.
+- From this release's own /tri-review, run under the new rules (blind
+  Claude leg, built-in review, graded Gemini pass, the new walkthrough pass,
+  the operations pass; 30 raw findings, none rejected, 3 systemic waived):
+  the trunk is fetched before it is validated, and the server is asked only
+  when CLAUDE.md/AGENTS.md are silent (all four external passes caught the
+  order); grade disputes get their own rebuttal outcome that keeps the
+  finding, and differing grades file under the highest; external output
+  goes to files so the Claude leg stays blind; the walkthrough and
+  operations prompts grade, and AUTHORIZE means no BLOCKER; trunk names and
+  cited paths are treated as data; standing risks apply only to a list the
+  user named. The walkthrough pass produced the most useful findings of
+  the four on its first run.
 
 ## 2.9.0 (2026-10-02)
 
