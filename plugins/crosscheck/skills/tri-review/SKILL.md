@@ -21,7 +21,7 @@ finding is real; disagreement tells the user exactly where to look manually.
 |---|---|---|
 | **Claude** (verification + merge; see step 4 re `/code-review`) | the newest available release of a top-tier Claude family (2026-09: Fable 5.1 or Opus 5.5) | the session model, see below |
 | Codex | the CLI's default under config isolation, read the `model:` line Codex prints at startup; `-c model=...` to override | `--ephemeral --ignore-user-config -s read-only`, effort forced to `high` |
-| Gemini | the newest Gemini on the plan (2026-09: `gemini-3.8-flash-high`, a floor, not a pin) | `--model` on every `agy` call |
+| Gemini | the newest Gemini on the plan (2026-10: `gemini-4-argon-high`, a floor, not a pin) | `--model` on every `agy` call |
 
 The other two legs get their model set on the command line, Gemini by
 `--model`, Codex by the CLI default under config isolation or an explicit
@@ -430,10 +430,10 @@ merge logic) is identical on every platform.
   permission", add a read-only rule there, never use
   `--dangerously-skip-permissions`.
 - Pass `--model` explicitly and pick the newest **Gemini** model your plan
-  offers (e.g. `gemini-3.8-flash-high` as of 2026-09, the 3.7 example that
-  stood here went stale within a month, which is why the table calls it a
-  floor); a newer flash tier at high effort tends to out-review an older
-  pro tier. If the newest Gemini listed is *older* than the dated example,
+  offers (e.g. `gemini-4-argon-high` as of 2026-10; the 3.7 and then 3.8
+  Flash examples that stood here each went stale within a month or so, which
+  is why the table calls it a floor); the newest generation at high effort
+  tends to out-review an older tier, whatever its name. If the newest Gemini listed is *older* than the dated example,
   the seat is below floor: still run it, Gemini is the tie-breaker, not the
   load-bearing seat, but label the report `gemini seat: <model>, below the
   documented floor` so the user can discount it. Do not stop for it the way
@@ -441,9 +441,9 @@ merge logic) is identical on every platform.
   may also list Claude and GPT-OSS models, don't pick those, or two of your
   three "independent" reviewers share a lab and the agreement signal is void.
   Run `agy models` and copy a name from the list rather than guessing one:
-  new generations appear silently, and the pro line lags the flash line
-  (as of 2026-09 Flash is at 3.8 while the newest Pro is still 3.1), so an
-  invented name just fails.
+  new generations and new family names appear silently (as of 2026-10 the
+  plan lists Gemini 4 Argon and 3.8 Flash, and 3.6 Flash and 3.1 Pro are
+  gone), so an invented name just fails.
 - Auth error / "Please sign in" → tell the user to run `agy` in their own
   terminal and complete the Google login; do not attempt to re-auth headless
   (it requires an interactive OAuth code paste).

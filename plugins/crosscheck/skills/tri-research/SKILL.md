@@ -70,7 +70,7 @@ failure point across these skills, and this is the skill that reviews it.
 |---|---|---|
 | **Claude** (ledger, resolution, output) | the newest available release of a top-tier Claude family (2026-09: Fable 5.1 or Opus 5.5) | the session model, check before step 0 |
 | Codex | the CLI's default under config isolation, read the `model:` line Codex prints at startup; `-c model=...` to override | `--ephemeral --ignore-user-config -s read-only`, effort forced `high`, **web search enabled** |
-| Gemini | the newest Gemini on the plan (2026-09: `gemini-3.8-flash-high`, a floor, not a pin) | `--model` on every `agy` call; **web fetch needs per-domain allow rules**, see below |
+| Gemini | the newest Gemini on the plan (2026-10: `gemini-4-argon-high`, a floor, not a pin) | `--model` on every `agy` call; **web fetch needs per-domain allow rules**, see below |
 
 **Verified against codex-cli 0.146, do not re-derive:** `--search` is
 **not** a valid flag on `codex exec`, it exists on the interactive TUI

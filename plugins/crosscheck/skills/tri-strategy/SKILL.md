@@ -70,7 +70,7 @@ numerically.
 |---|---|---|
 | **Claude** (evidence pack, one lens, crux resolution, the memo) | the newest available release of a top-tier Claude family (2026-09: Fable 5.1 or Opus 5.5) | the session model, check before step 0 |
 | Codex | the CLI's default under config isolation, read the `model:` line Codex prints at startup; `-c model=...` to override | `--ephemeral --ignore-user-config -s read-only`, effort forced to `high` |
-| Gemini | the newest Gemini on the plan (2026-09: `gemini-3.8-flash-high`, a floor, not a pin) | `--model` on every `agy` call |
+| Gemini | the newest Gemini on the plan (2026-10: `gemini-4-argon-high`, a floor, not a pin) | `--model` on every `agy` call |
 
 Claude assembles the evidence, argues a lens, resolves the cruxes, and
 writes the memo, more load-bearing than in any sibling skill, which is

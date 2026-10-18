@@ -5,6 +5,17 @@ Dates are commit dates. Every entry since 1.2.1 was itself reviewed with
 `/tri-review` before it shipped; the findings that changed the release are
 noted where they mattered.
 
+## 2.11.1 (2026-10-19)
+
+- Gemini example refreshed to `gemini-4-argon-high`, the first Gemini 4
+  model on the plan (`agy models`, 2026-10-19). 3.6 Flash and 3.1 Pro are
+  no longer offered there. Still a floor, not a pin: pick the newest model
+  your plan lists.
+- `/tri-decide` no longer says to pick a "flash-high tier", and the
+  `/tri-review` note about which Gemini lines exist is current. Both found
+  by this release's own review (Codex prompted pass and the Gemini 4 Argon
+  leg agreed on the first; Argon alone found the second).
+
 ## 2.11.0 (2026-10-02)
 
 - **Standing-risks starter list**:

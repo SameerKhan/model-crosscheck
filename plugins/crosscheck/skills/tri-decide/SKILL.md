@@ -41,7 +41,7 @@ that does not exist.
 |---|---|---|
 | **Claude** (proposal, crux resolution, adjudication, the record) | the newest available release of a top-tier Claude family (2026-09: Fable 5.1 or Opus 5.5) | the session model, see below |
 | Codex proposer | the CLI's default under config isolation, read the `model:` line Codex prints at startup; `-c model=...` to override | `--ephemeral --ignore-user-config -s read-only`, effort forced to `high` |
-| Gemini proposer | the newest Gemini on the plan (2026-09: `gemini-3.8-flash-high`, a floor, not a pin) | `--model` on every `agy` call |
+| Gemini proposer | the newest Gemini on the plan (2026-10: `gemini-4-argon-high`, a floor, not a pin) | `--model` on every `agy` call |
 
 Claude drafts an option, resolves the cruxes, judges the comparison, and
 writes the record, more load-bearing here than in any sibling skill. Check
@@ -236,8 +236,9 @@ in the record, the reasoning is what a future reader needs most.
   hollow replies, keeping the Antigravity allowlist read-only) is shared
   with the sibling skills, see **/dual-review** and **/tri-review** Notes.
 - Pass `--model` explicitly on the Gemini leg and use the newest Gemini
-  flash-high tier your plan offers, a newer flash tier at high effort
-  holds up on open-ended reasoning, not just patch review. Never pick a
+  model your plan offers at high effort, whatever its name (as of 2026-10,
+  `gemini-4-argon-high`); the newest generation holds up on open-ended
+  reasoning, not just patch review. Never pick a
   Claude or GPT-OSS model from `agy models`: that puts one lab on two of
   the three seats and voids the independence the skill is built on.
 - If one CLI is unavailable, say so and offer the two-model version rather

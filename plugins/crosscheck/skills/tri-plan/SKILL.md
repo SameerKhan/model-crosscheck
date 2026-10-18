@@ -23,7 +23,7 @@ point BOTH critics raise independently is near-certain to be real.
 |---|---|---|
 | **Claude** (plan draft, adjudication, implementation) | the newest available release of a top-tier Claude family (2026-09: Fable 5.1 or Opus 5.5) | the session model, see below |
 | Codex critic | the CLI's default under config isolation, read the `model:` line Codex prints at startup; `-c model=...` to override | `--ephemeral --ignore-user-config -s read-only`, effort forced to `high` |
-| Gemini critic | the newest Gemini on the plan (2026-09: `gemini-3.8-flash-high`, a floor, not a pin) | `--model` on every `agy` call |
+| Gemini critic | the newest Gemini on the plan (2026-10: `gemini-4-argon-high`, a floor, not a pin) | `--model` on every `agy` call |
 
 Both critics get their model set on the command line, Gemini by `--model`,
 Codex by the CLI default under config isolation or an explicit `-c model=`,
