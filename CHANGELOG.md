@@ -5,6 +5,43 @@ Dates are commit dates. Every entry since 1.2.1 was itself reviewed with
 `/tri-review` before it shipped; the findings that changed the release are
 noted where they mattered.
 
+## 2.12.0 (2026-11-03)
+
+`/tri-plan` is rewritten to converge in fewer rounds. A plan that took 12
+rounds showed where they went: wrong readings of existing behaviour that the
+claims table never listed, decisions only the user could make argued
+between models, fixes that broke something else, and rounds where one
+critic never returned both lenses.
+
+- **Round 0, claims first.** Codex alone checks the claims table before the
+  approach is written. The table now also lists behaviours of existing code
+  the approach depends on: precedence between sources, failure and default
+  behaviour, return types, scope resolution.
+- **Owner questions up front.** Questions only a resource owner can answer
+  go out before round 1, each with a safe default, marked LOAD-BEARING or
+  not. Critics can mark a point `OWNER-DECISION` and return
+  `SOUND-PENDING-OWNER` / `AUTHORIZE-PENDING-OWNER` when its default is
+  safe; a ruling that differs from that default sends the plan round again.
+  Prompts may no longer tell a critic how to label or grade a point.
+- **Check the fix.** Every accepted fix is re-read against the code, logged
+  in a change log the critics review, and marked `FIX-UNVERIFIED` when
+  reading cannot settle it.
+- **Complete rounds only.** Four valid passes on one frozen snapshot (a
+  read-only copy with a one-off nonce the critic must quote), with HEAD
+  equal to the plan's base and a clean tree. A failed pass gets one retry;
+  a round still missing a pass does not count, and the choice is a new round
+  later or /dual-plan. Stuck passes stop at 30 minutes. A status goes to the
+  user after every round.
+- **One plan per risk level**, a private run folder outside every repo
+  (checked), document-review mode, PowerShell rows for the new commands,
+  and a 25-minute Gemini timeout.
+- Reviewed with `/tri-plan` itself over four rounds plus two confirmation
+  passes (Codex and Gemini 3.8 Flash; Gemini 4 Argon was out of quota). The
+  release's own review of the public text found an unset `$OUT` in both
+  command examples, a verdict-last-line rule the prompt order contradicted,
+  snapshot names that collided after a failed round, and a dirty-tree rule
+  that committed work unasked; all fixed before release.
+
 ## 2.11.1 (2026-10-19)
 
 - Gemini example refreshed to `gemini-4-argon-high`, the first Gemini 4

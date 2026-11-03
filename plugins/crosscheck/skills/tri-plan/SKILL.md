@@ -11,6 +11,14 @@ final diff. The value is adversarial and cross-vendor: both critics are
 prompted to find what the plan gets wrong, not to agree with it, and a
 point BOTH critics raise independently is near-certain to be real.
 
+**Aim: converge in at most 3 complete rounds.** A run that took 12 showed
+where rounds go: early correctness rounds found wrong readings of existing
+behaviour the claims table never listed (step 1); decisions only the user
+could make stayed open BLOCKERs for rounds after a critic had named them
+(OWNER-DECISION, step 3); new blockers kept landing on the previous round's
+fixes (step 3, "check the fix"); and one critic first returned both lenses
+on the same version in round 10 (step 4, complete rounds).
+
 > **Sibling skills.** `/dual-review`, `/tri-review` and the rest name the
 > other skills in this set. Installed as the plugin, invoke them as
 > `/crosscheck:<name>`; as plain copies, as `/<name>`. Either way their
@@ -65,6 +73,10 @@ and translate; don't paste the bash form and hope:
 |---|---|
 | `codex exec ... - < critique-prompt.md` | `Get-Content critique-prompt.md \| codex exec ... -`, PowerShell **reserves `<`** and errors on it |
 | `mktemp` | `(New-TemporaryFile).FullName` |
+| `mktemp -d` (the run folder) | `New-Item -ItemType Directory -Path (Join-Path $env:TEMP ("tri-plan." + [guid]::NewGuid().ToString('N')))` |
+| `openssl rand -hex 4` | `[guid]::NewGuid().ToString('N').Substring(0,8)` |
+| `chmod 444 <file>` | `Set-ItemProperty <file> -Name IsReadOnly -Value $true` |
+| `rm -rf "$RUN"` | `Remove-Item -Recurse -Force $RUN` |
 | `~/.codex/config.toml` | `$env:USERPROFILE\.codex\config.toml` (or `$env:CODEX_HOME\config.toml`, `CODEX_HOME` is the directory, not the file) |
 | `~/.gemini/antigravity-cli/settings.json` | `$env:USERPROFILE\.gemini\antigravity-cli\settings.json` |
 
@@ -75,50 +87,154 @@ identical on every platform.
 
 ## Steps
 
-1. **Scope the feature.** Explore the codebase as usual (respect the repo's
-   CLAUDE.md conventions and known landmines). Draft an implementation plan:
-   goal, files to touch, approach, data-shape changes, risks, test plan.
-   Write it to a scratch file OUTSIDE the repo (plain `mktemp`, or
-   `(New-TemporaryFile).FullName` on Windows), scratch files inside the
-   repo would pollute a later `--uncommitted` review scope or get committed
-   by accident, and a fixed name collides with a concurrent run.
-   Gemini reads this file by absolute path; Codex gets its contents inlined
-   into the critique prompt, because `codex exec -` reads stdin as its whole
-   prompt.
+0. **Set up the run folder.** Create it OUTSIDE every repo, in the
+   session's scratch directory if it has one, else `${TMPDIR:-/tmp}`:
+   `mktemp -d "<that directory>/tri-plan.XXXXXX"` (mode 700), writing the literal directory path in place of the placeholder. Check it exists and
+   is not inside a git work tree (`git -C "$RUN" rev-parse
+   --is-inside-work-tree` must fail). Scratch files inside a repo would
+   pollute a later `--uncommitted` review scope or get committed by
+   accident, and a fixed name collides with a concurrent run. Every working
+   copy this run makes (prompts, plan snapshots, critic outputs and logs)
+   lives in it. Gemini also keeps its own copy of each conversation;
+   deleting the folder does not remove that. Record `REPO` (the target
+   repo's absolute root, `git rev-parse --show-toplevel`) and `BASE` (`git
+   rev-parse HEAD`).
+   **Document review with no repo:** stage the documents in `$RUN`, set
+   `REPO` to `$RUN` and `BASE` to `none`, skip every git command in this
+   skill except the run-folder check above (which applies in both modes),
+   run the critics from `$RUN`, add `--skip-git-repo-check` to
+   `codex exec` only, and re-check citations against the staged files.
+   **Shell variables do not survive between Bash calls** in most agent
+   harnesses: write the literal run folder, repo and base into every
+   command (`$RUN`, `$REPO`, `$BASE` below stand for those literals), and
+   start every command that writes a file with `umask 077`.
 
-   Head the plan with its **base commit** (`git rev-parse HEAD`), and end it
-   with a **claims table**: one row per API, function, CLI flag, config key
-   or credential the plan relies on, saying what it is assumed to do and
-   how you checked it (file:line of the definition, `--help` output, the
-   vendor's docs). Checks are **read-only**: read the source, read docs, and
-   run `--help` only on installed third-party CLIs, never on the repo's own
-   scripts (a script that ignores its arguments simply runs). Name a
-   credential by its identifier (env var, secret name), never by opening
-   the store that holds it. If the plan builds on uncommitted changes, say
-   so next to the base commit. Anything that would call a live service, touch data, or need a
-   credential is marked `UNVERIFIED` rather than probed, unless the user
-   approves that specific call. The table is a set of assertions for the
+1. **Scope the feature.** Explore the codebase as usual (respect the repo's
+   CLAUDE.md conventions and known landmines). Write `$RUN/plan.md` in two passes. First: a first line naming the
+   version (`# <title> (v<V>)`), the repo root and base commit, the
+   `OWNER QUESTIONS` section (below) and the **claims table**. Round 0
+   (step 1b) checks those. Only then add the plan itself after them (goal,
+   files to touch, approach, data-shape changes, risks, test plan).
+
+   **One plan per risk level.** If the work mixes a low-risk part (copy,
+   styling, docs) with a part that touches data shape, auth, tenancy,
+   credentials, queues or deploy, propose a split in `OWNER QUESTIONS`
+   (default: split). Each resulting plan gets the full process; splitting
+   never shortens review. A plan that ships first must be safe to ship
+   alone, and its Lens B judges that. A critic may object to the split (or
+   to not splitting) like any other point.
+
+   **The claims table** has one row per API, function, CLI flag, config
+   key or credential the plan relies on, **and one row per behaviour of
+   existing code the approach depends on**: which value wins when two
+   sources disagree (a header vs a query parameter), what happens on a
+   missing or failed read (fail open, reject, default), what a library call
+   returns for the actual type, which scope a request resolves to and from
+   where. Each row says what is assumed and how it was checked (file:line
+   of the definition, `--help` output, the vendor's docs). Checks are
+   **read-only**: read the source, read docs, and run `--help` only on
+   installed third-party CLIs, never on the repo's own scripts (a script
+   that ignores its arguments simply runs). Name a credential by its
+   identifier (env var, secret name), never by opening the store that
+   holds it. A behaviour that reading cannot settle, and anything that
+   would call a live service, touch data, or need a credential, is marked
+   `UNVERIFIED` rather than probed, unless the user approves that specific
+   call or script (propose it in `OWNER QUESTIONS`: what it runs, what it
+   imports, what it can reach). The table is a set of assertions for the
    critics to attack, not facts they inherit: a plan that cannot run
    usually fails on one of these rows, and Claude's own checks share
    Claude's blind spots.
 
-2. **Critique gate, run both critics in parallel, in the background**
-   (each takes minutes; two separate Bash calls with
-   `run_in_background: true`):
+   **`OWNER QUESTIONS`.** If the plan touches something a specific person
+   is accountable for (see "A human who owns the resource", below), list
+   each question for them, with the safe default the plan uses until it is
+   answered, and mark each `LOAD-BEARING` (the answer could change scope,
+   privilege, credentials, retention or behaviour) or not. Give the list to
+   the user before round 0; they send it, or name the channel Claude may
+   send it through. Round 1 waits for the LOAD-BEARING answers unless the
+   user says to proceed on the defaults; the others run alongside the
+   rounds. None: write "OWNER QUESTIONS: none".
+
+1b. **Round 0: claims pass, Codex only.** Before writing the approach,
+   send Codex the plan so far (header, owner questions, claims table) with
+   this prompt, from `$REPO`:
+
+   > The file named on the CLAIMS line below is the claims table of a plan
+   > that has no approach yet; read it first.
+   > Do NOT edit files; read the repository to check it. Re-check every
+   > row yourself in the source (do not trust its "how checked" column)
+   > and mark it CONFIRMED / WRONG / UNVERIFIABLE with file:line. Then
+   > list behaviours of the code these rows name that an approach would
+   > depend on and the table omits: precedence between sources, failure
+   > and default behaviour, return types, scope resolution. Do not judge
+   > the missing approach, files, blast radius or tests. Never open
+   > credential stores (`~/.claude.json`, `~/.codex/`, `~/.gemini/`,
+   > `~/.aws/`, `~/.ssh/`, `.env*`, keychains). Begin your reply with one
+   > line: `PLAN: <that file's first line, verbatim>`. End with the
+   > line `Verdict: CLAIMS-CHECKED`.
+   > CLAIMS: <absolute path of the round-0 snapshot>
+
+   Snapshot, command, output and validity follow step 2's rules with attempt `<K>` = 0 (its only verdict is `CLAIMS-CHECKED`). Fix every WRONG row,
+   add every missing row, then draft the approach. Round 0 does not count
+   toward the cap and needs no sign-off; Gemini re-checks every row in
+   round 1. Round 0 is Codex only because Gemini's quota is usually the
+   scarce resource. It also shows early whether Codex is up.
+
+2. **Critique gate: four passes per round, in parallel, in the
+   background.** Two critics times two lenses = **four** Bash calls with
+   `run_in_background: true`. **Freeze the version first.** Check that
+   `git -C "$REPO" rev-parse HEAD` still equals `BASE`; if it does not, the
+   code moved: update the plan's base, re-check the claims it touches, and
+   treat it as a new version. Also check the tree is clean:
+   `git -c core.fsmonitor=false -C "$REPO" status --porcelain` must print
+   nothing, so every critic reads exactly `BASE`. On a dirty tree, stop
+   and ask the user to commit the work the plan builds on (or to approve
+   the exact files Claude may commit), then use that commit as `BASE`;
+   never commit or stash it unasked. Nobody edits `$REPO` while a round
+   runs. Then, in one command, write the snapshot
+   `$RUN/plan-v<V>-a<K>.md` as a new first line
+   `# <title> (v<V>, attempt <K>, nonce <openssl rand -hex 4>)` followed by
+   `plan.md` without its first line, `chmod 444` it, and record its sha256.
+   `<V>` is the plan version and `<K>` the attempt: it goes up by one at
+   every freeze and is never reused, so a void or incomplete round never
+   collides with an earlier read-only snapshot. The round cap counts
+   complete rounds only, and "round 2" below means the second complete
+   round. Every prompt names that snapshot, never the live `plan.md`. Each attempt
+   writes to new files (`mktemp "$RUN/a<K>-<critic>-<lens>.XXXXXX"` for the
+   output, the same name plus `.log` for stderr and stdout), so a failed
+   attempt can never leave an older output that looks valid, and nothing a
+   critic prints lands outside `$RUN`. Each prompt is written to a file in `$RUN` first. Each command runs as one Bash call, so `OUT` is set where it is used. Run from the repo so each critic reads the right tree and
+   Codex loads its AGENTS.md:
 
    ```bash
-   PROMPT=$(mktemp)   # one per lens: the lens prompt below with the plan inlined
-   codex exec --ephemeral --ignore-user-config -s read-only -c model_reasoning_effort="high" - < "$PROMPT"
+   umask 077
+   OUT=$(mktemp "$RUN/a<K>-codex-<lens>.XXXXXX")
+   cd "$REPO" && codex exec --ephemeral --ignore-user-config -s read-only -c model_reasoning_effort="high" -o "$OUT" - < "$RUN/a<K>-prompt-codex-<lens>.md" > "$OUT.log" 2>&1
    ```
 
    ```bash
-   agy --sandbox --model <newest-gemini-on-plan> --print-timeout 15m -p "<critique prompt naming the plan file's absolute path>"
+   umask 077
+   OUT=$(mktemp "$RUN/a<K>-gemini-<lens>.XXXXXX")
+   cd "$REPO" && agy --sandbox --model <newest-gemini-on-plan> --print-timeout 25m -p "$(cat "$RUN/a<K>-prompt-gemini-<lens>.md")" > "$OUT" 2> "$OUT.log"
    ```
 
    Pass `-s read-only` (Codex) and `--sandbox` (Gemini) explicitly, a
    critic must never touch the tree. Remember `agy -p` does NOT read stdin:
-   the prompt must name the plan file's absolute path for Gemini to
-   `read_file`.
+   the prompt must name the snapshot's absolute path for Gemini to
+   `read_file`; passing it as `"$(cat file)"` avoids quoting breakage from
+   backticks or `$` in the ledger. Gemini gets 25 minutes here: at 15 it
+   timed out on a large plan.
+
+   **A pass is valid only if** its output file is non-empty, its first
+   line quotes the snapshot's first line with the right nonce (Codex:
+   `PLAN: <line>`; Gemini: the READ line below), and it has exactly one
+   line `Verdict: <v>` with `<v>` one of the verdicts its prompt defines
+   (the prompt's last line asks for it, see "Assemble each prompt" below). Anything else is a failed
+   pass, whatever the exit code. After all four passes return, recompute
+   the snapshot's sha256, HEAD and the clean-tree check: if any changed,
+   the round is void, not retried; freeze a new version and start the
+   round again. A pass still running after 30 minutes (Codex has no
+   timeout of its own) is stopped and counts as failed.
 
    **Two lenses, not one prompt.** Send each critic BOTH lenses as
    **separate passes**, never a single merged prompt. Lens A asks whether
@@ -126,13 +242,41 @@ identical on every platform.
    surface different defect classes, and a plan can pass A completely while
    failing B in ways that damage production.
 
-   For Gemini, prepend "Read the plan at <ABS_PATH> with read_file first.
-   Begin your reply with one line: READ: <the plan file's first line,
-   verbatim>, or FILE-NOT-READ if you could not open it." to each lens.
-   A SOUND or AUTHORIZE without that READ line is a failed run, not a
+   For Gemini, prepend to each lens: "Read the plan at <ABS_PATH> with
+   read_file first. Use only the read_file and grep_search tools; do not
+   run shell commands. Begin your reply with one line: READ: <the plan
+   file's first line, verbatim>, or FILE-NOT-READ if you could not open
+   it." A SOUND or AUTHORIZE without that READ line is a failed run, not a
    sign-off, the hollow-verdict failure is reproduced, not hypothetical
    (see /tri-review's Notes): check whether the critique cites the plan's
    actual content; if not, discard it, re-check the path, and re-run once.
+   A run that dies with "required the command permission" tried a shell
+   command: re-run once with the tool rule repeated; never widen the
+   allowlist for it. For Codex, prepend: "Read the plan file named on the PLAN line at the end of this prompt first (it is outside the repo). Begin your reply with one line: PLAN: <the plan file's first line, verbatim>."  The nonce in that line
+   exists only in this round's snapshot, so the echo proves the critic
+   read that file.
+
+   **Both lens prompts carry this paragraph** (Lens B drops the
+   sentence on the claims table, except for rows that bear on privilege,
+   data or cleanup):
+   > This is your one complete pass at this version. List every BLOCKER
+   > and SHOULD you can find now; do not hold any back for a later round.
+   > Go through the claims table row by row (CONFIRMED / WRONG /
+   > UNVERIFIABLE) before your other points. If a point can only be
+   > settled by a fact or a preference that only the operator or a named
+   > resource owner holds (a retention term, whether a credential may be
+   > used, a product choice), mark it `OWNER-DECISION` in addition to its
+   > severity, say exactly what must be decided, and say whether the
+   > plan's stated default for it is safe to run on. If every BLOCKER you
+   > still hold is an OWNER-DECISION whose default you judge safe, your
+   > verdict is `SOUND-PENDING-OWNER` (Lens A) or
+   > `AUTHORIZE-PENDING-OWNER` (Lens B), listing those points.
+
+   **Assemble each prompt in this order:** the critic's preamble (Gemini or
+   Codex, above); the lens text (below); from round 2, the ledger appendix
+   (below); the closing paragraph above; the `PLAN:` line; and last the
+   line "Put your verdict on its own line, `Verdict: <verdict>`, as the
+   last line of your reply." Nothing comes after it.
 
    **Lens A, correctness:**
    > You are reviewing an implementation plan for this repository (read the
@@ -140,7 +284,7 @@ identical on every platform.
    > AGENTS.md, has project context, when present). Do NOT implement
    > anything, do NOT edit files. Verify the plan's claims against the
    > files and symbols it names. Do not tour the repo at large. The plan
-   > ends with a claims table: re-check EVERY row yourself in the source
+   > has a claims table: re-check EVERY row yourself in the source
    > (do not trust its "how checked" column), mark each CONFIRMED / WRONG /
    > UNVERIFIABLE, and name any load-bearing claim missing from the table.
    > For a credential row, confirm the code reads that identifier; never
@@ -156,10 +300,9 @@ identical on every platform.
    > with, at a stated risk), or NIT. Give each point its evidence: a
    > file:line, command output, a config fact, or "needs an operator fact".
    >
-   > Verdict: SOUND (no open BLOCKER) / NEEDS-CHANGES.
+   > Verdict: SOUND (no open BLOCKER) / SOUND-PENDING-OWNER / NEEDS-CHANGES.
    >
-   > PLAN: <for Codex, the plan contents inlined, `codex exec -` reads stdin
-   > as its whole prompt; for Gemini, the absolute path it must read_file>
+   > PLAN: <snapshot path> (sha256 <hash>)
 
    **Lens B, authorization / operations:**
    > You are deciding whether to AUTHORIZE this plan to run, assume it will
@@ -189,10 +332,9 @@ identical on every platform.
    > with, at a stated risk), or NIT. Give each point its evidence: a
    > file:line, command output, a config fact, or "needs an operator fact".
    >
-   > Verdict: AUTHORIZE (no open BLOCKER) / DO-NOT-AUTHORIZE.
+   > Verdict: AUTHORIZE (no open BLOCKER) / AUTHORIZE-PENDING-OWNER / DO-NOT-AUTHORIZE.
    >
-   > PLAN: <for Codex, the plan contents inlined, `codex exec -` reads stdin
-   > as its whole prompt; for Gemini, the absolute path it must read_file>
+   > PLAN: <snapshot path> (sha256 <hash>)
 
    **Lens B's read scope is not boilerplate.** "Would you authorize this?"
    invites a critic to go and inspect the operator's setup. In a real run,
@@ -202,12 +344,18 @@ identical on every platform.
    fence: state the config facts the lens needs inline, with secret values
    removed, rather than letting a critic fetch them.
 
-   **From round 2,** append to each lens prompt the points ledger and:
-   "First answer each of YOUR open points: RESOLVED or NOT RESOLVED, with
-   why, citing the revised plan. Then raise only new points, numbered on
-   from your last list. A point you raised earlier stays open until you
-   mark it RESOLVED." Without this the critics re-review from scratch and
-   the ledger cannot close.
+   **From round 2,** append to each lens prompt the compact ledger (open
+   points in full; closed points by ID and one line) and the plan's change
+   log for this version, then: "First answer each of YOUR open points:
+   RESOLVED or NOT RESOLVED, with why, citing the revised plan. Then read
+   the change log and name any entry that breaks something elsewhere in
+   the plan or the code, or write `CHANGE-LOG: OK`. Then raise only new
+   points, numbered on from your last list. A point you raised earlier
+   stays open until you mark it RESOLVED." Without this the critics
+   re-review from scratch and the ledger cannot close. The appended text
+   never tells a critic how to label or grade a specific point ("mark it
+   OWNER-DECISION", "do not repeat this argument"): that is a rebuttal,
+   and goes in the ledger as one, with its evidence.
 
    **The executable-claim check (in Lens A) is the highest-value single
    rule here.** A plan that says "inject the credentials at call time"
@@ -230,6 +378,24 @@ identical on every platform.
      not downgrade a point; it can only rebut it with evidence, and the
      critic answers the rebuttal next round. A BLOCKER still disputed at
      the cap goes to the user as a decision.
+   - **OWNER-DECISION is the critic's label too.** Claude may propose it
+     in a rebuttal; it applies only when the critic who raised the point
+     marks it. Each OWNER-DECISION goes to the user in **this** round's
+     status (step 4): the question, each critic's position, the plan's
+     default, whether the critics judged it safe, and Claude's
+     recommendation. A default a critic judges unsafe is an ordinary open
+     BLOCKER until fixed. When the user rules: if they pick the default
+     the critics already saw, nothing in the plan changes; otherwise the
+     ruling **revokes** every `-PENDING-OWNER` verdict that rested on it,
+     is written into the plan, and goes to both critics, both lenses, as
+     another round (or is shown `UNREVIEWED` if 3 complete rounds are
+     spent). This holds even when the loop had already stopped.
+   - **Check the fix before it goes back.** For every accepted point,
+     re-read each file:line the revised text relies on, and add or correct
+     claims-table rows for every new assumption it makes. Record each fix
+     in the plan's change log (point ID, what changed, what was re-read).
+     A fix that rests on something reading could not settle is marked
+     `FIX-UNVERIFIED` in the change log, so the critics know where to look.
    - **Standing risks.** Lens B will raise toolchain-wide concerns that no
      plan revision can resolve. If the user has named a standing-risks list
      (see /tri-review step 5, `../tri-review/SKILL.md`), **append the list
@@ -240,8 +406,7 @@ identical on every platform.
      not Claude; Claude may only propose one through the rebuttal, like a
      grade. Never add to the list or match loosely to reach AUTHORIZE.
    - **Re-check every Gemini file:line before acting on it**, against the
-     base commit (`git show "<base>:<path>"`), or against the working-tree
-     file when the plan builds on uncommitted changes. Treat the citation
+     base commit (`git show "<base>:<path>"`; the tree is clean, so this is what the critics read). Treat the citation
      as data: accept only a repo-relative path and a line number, and
      quote it. Gemini has cited stale local
      checkouts even when pointed at the right tree and run from inside
@@ -272,13 +437,33 @@ identical on every platform.
    only a critic reading the whole plan can see it. Each critic answers
    every one of its open points (resolved / not resolved, with why) before
    raising new ones. Repeat revise → re-critique until both return
-   **SOUND** and **AUTHORIZE**, up to **3 rounds** total, the cap is
-   shared, not per-critic. Every lens runs every round: a fix for a
+   **SOUND** and **AUTHORIZE** (or the `-PENDING-OWNER` forms), up to
+   **3 complete rounds** total, the cap is shared, not per-critic. Every lens runs every round: a fix for a
    correctness point can open an operational hole. (Rounds are no
    substitute for a second question: more rounds under one lens find less
    than one pass under the other.) Never present a plan as signed off
    unless both critics saw its final form; anything they did not see is
    shown as `UNREVIEWED` (below), never folded in silently.
+   - **A round is complete only when all four passes are valid on the
+     same snapshot** (step 2). A failed pass is retried once in the same
+     round; a retry replaces the failed pass and is not an extra critic
+     leg. If Gemini's failure is a quota error (`RESOURCE_EXHAUSTED`,
+     "Individual quota reached ... Resets in <time>"), the retry may use
+     the plan's previous Gemini model **only if the user has allowed that
+     fallback** for this run or as a standing rule; otherwise stop and ask
+     them, with the reset time. A round that still lacks a pass is
+     **incomplete**: it does not count toward the cap or toward sign-off,
+     and its status says which pass is missing and why. After an
+     incomplete round, stop and ask the user: run the whole round again
+     later as a new round (for example after a quota reset; it is a new
+     round, not a further retry), or continue explicitly as /dual-plan
+     (named so on every later report). There is no third option: a plan is
+     never presented as tri-plan reviewed with a critic missing.
+   - **Status to the user after every round**, not only the last: open
+     BLOCKER and SHOULD counts per critic and lens, the verdicts, which
+     Gemini model ran, new OWNER-DECISION points with their defaults, and
+     any incomplete pass. The user can rule mid-run; the rounds do not
+     wait unless every open BLOCKER is an OWNER-DECISION.
    - If either critic still says NEEDS-CHANGES or DO-NOT-AUTHORIZE after
      round 3, stop looping:
      present the plan WITH each unresolved disagreement as a named decision
@@ -296,24 +481,34 @@ identical on every platform.
 
 5. **User approval.** Present the converged plan with a short section
    covering: what each critic changed; a per-round table of open BLOCKER
-   and SHOULD counts per critic and lens, with the verdicts; every SHOULD
-   still open, with its stated risk; every `UNREVIEWED` change; every
-   [disputed] point. The user approves before any code is written.
+   and SHOULD counts per critic and lens, with the verdicts, marking
+   incomplete rounds and round 0; which Gemini model ran each pass; every
+   SHOULD still open, with its stated risk; every OWNER-DECISION with its
+   default, the critics' safety judgement and the user's ruling or "not
+   yet ruled"; every `UNREVIEWED` change and `FIX-UNVERIFIED` entry; every
+   [disputed] point. The user approves before any code is written, and not
+   while an OWNER-DECISION or a resource owner's gate (below) is open. A
+   ruling that differs from a reviewed default sends the plan back to step
+   2 (step 3, OWNER-DECISION) before approval.
 
 6. **Implement.** Claude writes the code (Claude holds the tools, memory,
    and repo context). Neither critic edits the working tree, multiple
    writers on one tree causes conflicts.
 
 7. **Close with /tri-review** (the sibling skill) on the finished diff
-   before any PR/merge. Delete the scratch files (plan, lens prompts,
-   critiques) when the run ends for any reason, including a rejected plan
-   or a failed critic. The PR description gets a summary of the approved
+   before any PR/merge. When the run ends for any reason, including a
+   rejected plan or a failed critic: confirm none of this run's background
+   passes is still running (stop any), then `rm -rf "$RUN"` and check the
+   folder is gone, reporting it if not, unless the user asked to keep it.
+
+   The PR description gets a summary of the approved
    plan, not the claims table or the critiques.
 
    **If the user has named a run-log file** (outside any repo; never
    create one yourself, and do not ask on every run), append one line per
-   run with only these fields: date, a short slug, rounds used,
-   final verdict per critic and lens, open-point counts per round. When
+   run with only these fields: date, a short slug, rounds (complete and
+   incomplete), final verdict per critic and lens, open-point counts per
+   round, Gemini model per round. When
    /tri-review or production later finds a defect the plan stage should
    have caught, log it too, credited to the critic and lens that raised
    it or as `MISSED-BY-ALL`. Without the misses, the log can only count
@@ -324,7 +519,8 @@ identical on every platform.
 
 If the plan touches something a specific person is accountable for, the
 production database, the deploy pipeline, the cloud account, route it past
-that person **before** spending three model rounds, not after. They are not
+that person **before round 1**, through step 1's `OWNER QUESTIONS`, not
+after. They are not
 a slower critic; they ask a different question, because they are the one
 who gets paged. In practice their review lands the operational blockers
 (enforced privilege, egress exposure, retention) that correctness-focused
@@ -364,9 +560,13 @@ faked a liveness check, only surfaced when the code was actually run.
   in `~/.gemini/antigravity-cli/settings.json`, pick the newest **Gemini**
   model, `agy models` also lists Claude/GPT-OSS models, and picking one
   puts the same lab on two seats).
-- Gemini gets a longer `--print-timeout` here (15m vs review's 8m),
+- Gemini gets a longer `--print-timeout` here (25m vs review's 8m),
   checking a plan's claims against real code takes more reading than
   reviewing a patch file.
+- **Gemini quota is usually the scarce resource.** A full round is two
+  Gemini calls; plan for at most about six per plan. A quota reset days
+  away is the user's call (wait, allow the fallback, or /dual-plan),
+  raised the moment it appears.
 - If one critic CLI is unavailable (not installed / auth broken), say so
   and offer to fall back to /dual-plan rather than silently running with
   one critic under a three-critic banner.
