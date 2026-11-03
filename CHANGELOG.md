@@ -5,6 +5,35 @@ Dates are commit dates. Every entry since 1.2.1 was itself reviewed with
 `/tri-review` before it shipped; the findings that changed the release are
 noted where they mattered.
 
+## 2.13.0 (2026-11-03)
+
+`/tri-review` gets the parts of the 2.12.0 `/tri-plan` rewrite that fit a
+one-pass review.
+
+- **One private run folder** (checked to be outside every git work tree)
+  holds the patch, prompts and outputs, and is removed by its literal path
+  at the end. Commands use literal paths, since shell variables do not
+  survive between agent Bash calls.
+- **Pin what is reviewed.** HEAD and the patch's sha256 are recorded before
+  the legs start and checked after they return and again before the
+  report; a change voids the review.
+- **Valid legs only.** Codex must exit 0 with a real review and no fatal
+  diagnostic; Gemini's receipt must match the patch; every prompted pass
+  ends with a verdict line (4a: `CLEAN` / `FINDINGS`). A leg stuck for 30
+  minutes is stopped. A failed leg gets one retry; one still missing makes
+  the report a `/dual-review`, two make it Claude-only.
+- **OWNER-DECISION.** Prompted passes may mark a finding only the user can
+  settle. Confirmed ones go to the user as decisions; rejected ones go
+  through the rebuttal.
+- **Rebuttals never instruct the leg what to conclude.** A grade dispute may
+  state Claude's proposed grade as evidence and asks for the leg's final
+  grade.
+- Reviewed by Codex and Gemini 3.8 Flash before release (two rounds). The
+  first round found the cleanup command relying on an unset variable, Codex
+  commands without the output file the validity rule checks, a pass with no
+  verdict line, and OWNER-DECISION rules that contradicted each other; all
+  fixed.
+
 ## 2.12.0 (2026-11-03)
 
 `/tri-plan` is rewritten to converge in fewer rounds. A plan that took 12

@@ -76,6 +76,20 @@ merge logic) is identical on every platform.
 
 ## Steps
 
+0. **One private run folder.** Before step 1, create
+   `RUN=$(mktemp -d)` (mode 700; on Windows, `New-Item -ItemType Directory`
+   under `$env:TEMP`) and check it is not inside a git work tree
+   (`git -C "$RUN" rev-parse --is-inside-work-tree` must fail). Every file
+   this skill writes (patch, prompts, leg outputs and logs, the Claude
+   leg's findings) goes in it, except a run-log file the user named, which
+   stays where they named it: wherever a step below says `mktemp` or
+   names a scratch path, create the file inside the run folder instead
+   (`mktemp "$RUN/<name>.XXXXXX"`). **Shell variables do not survive between
+   Bash calls** in most agent harnesses: write the literal paths into every
+   command instead of relying on `$PATCH`, `$OUT` or `$RUN` from an earlier
+   call. Gemini keeps its own copy of each conversation; deleting the
+   folder does not remove that.
+
 1. **Determine diff scope.**
    - **Find the trunk first.** If the repo's CLAUDE.md or AGENTS.md names
      one, use it (if both name different trunks, stop and ask). Only when
@@ -144,10 +158,20 @@ merge logic) is identical on every platform.
    collides with a concurrent review and is world-predictable. When the
    review is done, success or failure, delete every temp file this skill
    made: `rm -f "$PATCH" "$OUT" "$ERR"`. They hold the diff and the
-   reviews, and `--ephemeral` only covers Codex's own session files. Plain `mktemp` with no template is the portable
-   form: BSD/macOS `mktemp -t foo.XXXXXX` treats the argument as a *prefix*
+   reviews, and `--ephemeral` only covers Codex's own session files. Inside the run folder, `mktemp "$RUN/<name>.XXXXXX"` is fine, the template is
+   given explicitly; elsewhere, plain `mktemp` with no template is the portable form: BSD/macOS `mktemp -t foo.XXXXXX` treats the argument as a *prefix*
    and appends its own suffix, so the literal `XXXXXX` survives in the
    filename. The extension doesn't matter, Gemini reads the file by path.
+
+   **Pin what is reviewed.** Before starting the legs, record
+   `git rev-parse HEAD` and the patch's sha256. For a branch review,
+   nobody pushes to or rebases the branch while the legs run; for an
+   uncommitted review, nobody edits the working tree. After every leg has
+   returned, and before the merge, check both again (re-create the patch
+   the same way and compare its sha256): if either changed, the legs saw
+   different code, so the review is void. Say so and start again on the
+   new state; do not merge findings across versions.
+
 
 3. **Start Codex and Gemini in the background, in parallel** (each takes
    several minutes). Two separate Bash calls with `run_in_background: true`:
@@ -163,7 +187,7 @@ merge logic) is identical on every platform.
    forever at 0% CPU (see Notes: Codex leg).
 
    ```bash
-   agy --sandbox --model <newest-gemini-on-plan> --print-timeout 8m -p "You are a senior code reviewer. Read the file <PATCH_PATH> with read_file, it is a git diff. Review it for real bugs only (correctness, security, data loss), not style. You MAY read_file the repo files named in the diff headers for surrounding context, but do NOT search or explore beyond them and do NOT run commands. Begin your reply with one line: INSPECTED: <number of files in the diff> | <the first diff --git header line, verbatim>. If you could not read the file, output FILE-NOT-READ instead of a review. Then output findings as one line each: file:line | BLOCKER or SHOULD or NIT | issue | why it breaks. If none, output CLEAN on the line after the INSPECTED preamble."
+   agy --sandbox --model <newest-gemini-on-plan> --print-timeout 8m -p "You are a senior code reviewer. Read the file <PATCH_PATH> with read_file, it is a git diff. Review it for real bugs only (correctness, security, data loss), not style. You MAY read_file the repo files named in the diff headers for surrounding context, but do NOT search or explore beyond them and do NOT run commands. Begin your reply with one line: INSPECTED: <number of files in the diff> | <the first diff --git header line, verbatim>. If you could not read the file, output FILE-NOT-READ instead of a review. Then output findings as one line each: file:line | BLOCKER or SHOULD or NIT | issue | why it breaks. If none, output CLEAN on the line after the INSPECTED preamble. If a point can only be settled by the user or a resource owner (a policy, whether a credential may be used, a retention term, a product choice), also mark it OWNER-DECISION and say what must be decided." > <run folder>/gemini.out 2>&1
    ```
 
    Always pass `-s read-only` (Codex) and `--sandbox` (Gemini), a reviewer
@@ -180,6 +204,28 @@ merge logic) is identical on every platform.
    `GEM_OUT=$(mktemp)` via `> "$GEM_OUT" 2>&1`) and do not open them until
    step 4's Claude file is written: output printed straight to the
    background task can surface before the Claude leg is done.
+
+   **A leg counts only if it is valid.** Codex: it exited 0, its `-o` file
+   is non-empty and holds a review (findings or a clean result, not a
+   provisional verdict), and stderr has no fatal diagnostic ("at
+   capacity", an auth error, "failed to spawn code-mode host", a
+   permission failure). Gemini: its INSPECTED
+   line matches the patch (or its findings cite files and lines that are in
+   the patch, see Notes), or it said FILE-NOT-READ, which is a failure.
+   Every prompted pass (4a, 4b) ends with its own verdict line. A leg still
+   running after **30 minutes** is stopped with TaskStop on its background
+   task, then checked gone (`pgrep -f` on its command, PIDs only), and
+   counts as failed: Codex has no timeout of its own. A failed leg gets
+   **one retry**, which replaces it and is not an extra leg. If Gemini's
+   failure is a quota error (`RESOURCE_EXHAUSTED`, "Resets in <time>"),
+   the retry may use the plan's previous Gemini model only if the user has
+   allowed that fallback for this run or as a standing rule; otherwise
+   stop and ask, with the reset time. A leg still missing after its retry
+   is reported as missing, with the reason, and the report is labelled
+   **/dual-review** (Claude plus the leg that ran), never as a triple
+   review. If both external legs are missing, it is a Claude-only review:
+   say so, and do not present it as a cross-model gate.
+
 
 4. **While they run, write the Claude leg's findings to disk before
    opening either external output.** Same baseline question as the other
@@ -210,6 +256,17 @@ merge logic) is identical on every platform.
    quietly lower it. When legs grade the same finding differently, it is
    filed under the highest grade, with every leg's grade shown.
 
+   **OWNER-DECISION.** A finding that only the user or a named resource owner
+   can settle (a policy, whether a credential may be used, a retention
+   term, a product choice) is marked `OWNER-DECISION` in addition to its
+   grade, saying exactly what must be decided. Every prompted pass (Gemini,
+   4a, 4b) is told it may use this label. Only the leg that raised the
+   finding can apply it. Claude still verifies the finding in step 5: if
+   CONFIRMED, it goes to the user as a decision in the report, keeping its
+   grade, instead of to the rebuttal; if REJECTED, it goes through the
+   step 6 rebuttal like any other finding.
+
+
 4a. **When the diff touches a playbook, prompt, plan, doc or config, add a
    prompted Codex pass**, alongside the built-in review, never instead of
    it (the built-in review found real defects in playbook diffs too, and
@@ -220,7 +277,7 @@ merge logic) is identical on every platform.
    reading the whole of each touched file: where would it run a command
    that fails or hangs, meet two instructions that contradict each other,
    be unable to decide (an undefined input, an unresolvable reference), or
-   leak data? Grade each BLOCKER, SHOULD or NIT. Read files inside the
+   leak data? Grade each BLOCKER, SHOULD or NIT. If a point can only be settled by the user or a resource owner (a policy, whether a credential may be used, a retention term, a product choice), also mark it OWNER-DECISION and say what must be decided. End with the line `Verdict: CLEAN` or `Verdict: FINDINGS`. Read files inside the
    repository only; never open credential stores (`~/.claude.json`,
    `~/.codex/`, `~/.gemini/`, `~/.aws/`, `~/.ssh/`, `.env*`). Findings on
    lines the change neither touches nor newly
@@ -259,8 +316,9 @@ merge logic) is identical on every platform.
    > one, say which fact you needed. Grade each point BLOCKER (a failure
    > this change causes or exposes, named concretely), SHOULD, or NIT; a
    > concern about the whole toolchain rather than this change is at most
-   > SHOULD. Verdict: AUTHORIZE if no BLOCKER remains, else
-   > DO-NOT-AUTHORIZE.
+   > SHOULD. If a point can only be settled by the user or a resource
+   > owner, also mark it OWNER-DECISION and say what must be decided.
+   > Verdict: AUTHORIZE if no BLOCKER remains, else DO-NOT-AUTHORIZE.
 
    Reviewing such a diff for "bugs" alone reliably misses this entire
    class, because nobody was asked. The read-scope sentence is there
@@ -354,7 +412,12 @@ merge logic) is identical on every platform.
    Concede → drop silently. Defend → re-examine once; if you still
    disagree, report it as **[disputed]** with both positions and your
    recommendation, the user rules. One rebuttal round only (reviews are expensive; the diff,
-   unlike a plan, doesn't change mid-review). Skip when nothing was rejected.
+   unlike a plan, doesn't change mid-review). Skip when nothing was rejected. The follow-up carries only the finding, the evidence and the
+   CONCEDE / DEFEND (or CONCEDE-GRADE / DEFEND-GRADE) request. For a grade dispute it
+   may state the grade Claude proposes, as part of the evidence, and asks
+   the leg to reply with its final grade. It never instructs the leg what
+   to conclude or how to label the point ("concede this", "mark it
+   OWNER-DECISION").
 
 7. **Report one consolidated list**, grouped BLOCKER, SHOULD, NIT, then
    PRE-EXISTING and matched standing risks, tagging each finding with its
@@ -362,7 +425,12 @@ merge logic) is identical on every platform.
    `[claude]`, `[codex]`, `[gemini]`, or `[disputed]`, and naming the pass
    when it was not the baseline review (operations pass, walkthrough).
    Never omit a disputed finding. Open BLOCKERs mean the review
-   recommends against merging; the user decides.
+   recommends against merging; the user decides. The report also lists every OWNER-DECISION with what must be
+   decided, any leg that was missing or retried (and why), the Gemini model
+   that ran, and whether the pin check passed: run it once more just before
+   reporting, since steps 5 and 6 take time. At the end, for any outcome,
+   confirm no leg is still running, then `rm -rf` the run folder by its
+   literal path and check it is gone; report it if not.
 
    Delete the patch and every temp file. **If the user has named a
    run-log file** (outside any repo; never create one, never ask every
